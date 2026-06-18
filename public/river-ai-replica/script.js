@@ -537,15 +537,15 @@ function initHeroWebGL() {
       float leftEdge = leftWallEdge(uv.y);
       float rightEdge = rightWallEdge(uv.y);
       float upper = wallUpper(uv.y);
-      float leftWall = (1.0 - smoothstep(leftEdge - 0.032, leftEdge + 0.052, uv.x)) * upper;
-      float rightWall = smoothstep(rightEdge - 0.05, rightEdge + 0.035, uv.x) * (1.0 - smoothstep(0.76, 1.0, uv.y));
+      float leftWall = (1.0 - smoothstep(leftEdge - 0.020, leftEdge + 0.030, uv.x)) * upper;
+      float rightWall = smoothstep(rightEdge - 0.035, rightEdge + 0.022, uv.x) * (1.0 - smoothstep(0.76, 1.0, uv.y));
       float betweenWalls = smoothstep(leftEdge - 0.02, leftEdge + 0.16, uv.x)
         * (1.0 - smoothstep(rightEdge - 0.15, rightEdge + 0.035, uv.x))
         * (1.0 - smoothstep(0.52, 0.70, uv.y));
       float throat = exp(-abs(uv.x - mix(leftEdge, rightEdge, 0.53)) / 0.22)
         * smoothstep(0.34, 0.62, uv.y)
         * (1.0 - smoothstep(0.56, 0.72, uv.y));
-      float leftRim = exp(-abs(uv.x - leftEdge) / 0.024) * upper * smoothstep(0.015, 0.42, uv.y);
+      float leftRim = exp(-abs(uv.x - leftEdge) / 0.018) * upper * smoothstep(0.015, 0.42, uv.y);
       float rightRim = exp(-abs(uv.x - rightEdge) / 0.026)
         * upper
         * smoothstep(0.08, 0.64, uv.y)
@@ -555,7 +555,7 @@ function initHeroWebGL() {
       color = mix(color, vec3(0.045, 0.15, 0.32), leftWall * (0.90 + wallTexture * 0.08));
       color = mix(color, vec3(0.08, 0.24, 0.45), rightWall * (0.82 + wallTexture * 0.09));
       color = mix(color, vec3(0.33, 0.31, 0.40), throat * 0.28);
-      color += vec3(0.30, 0.46, 0.50) * leftRim * 0.20;
+      color += vec3(0.34, 0.50, 0.54) * leftRim * 0.22;
       color += vec3(0.58, 0.76, 0.74) * rightRim * 0.17;
 
       vec2 sunP = vec2((uv.x - 0.468) * (u_resolution.x / u_resolution.y), uv.y - 0.428);
@@ -565,6 +565,12 @@ function initHeroWebGL() {
       color = mix(color, vec3(1.0, 0.96, 0.78), sunCore * 0.92);
       color += vec3(0.92, 0.58, 0.34) * sunGlow * 0.42;
       color += vec3(0.42, 0.28, 0.25) * sunHalo * 0.18;
+      float lowerMouth = exp(-abs(uv.x - 0.565) / 0.16) * smoothstep(0.54, 0.74, uv.y);
+      float notchShadow = exp(-abs(uv.x - 0.586) / 0.052)
+        * smoothstep(0.50, 0.58, uv.y)
+        * (1.0 - smoothstep(0.60, 0.70, uv.y));
+      color = mix(color, vec3(0.060, 0.160, 0.335), lowerMouth * 0.34);
+      color = mix(color, vec3(0.038, 0.110, 0.255), notchShadow * 0.62);
 
       float horizon = horizonAt(uv.x);
       float depthRaw = (uv.y - horizon) / (1.0 - horizon);
@@ -630,17 +636,20 @@ function initHeroWebGL() {
 
       vec2 cSunP = vec2((cellCenter.x - 0.468) * (u_resolution.x / u_resolution.y), cellCenter.y - 0.428);
       float sunGlyphField = exp(-dot(cSunP, cSunP) * 42.0) * (0.40 + fbm(cellCenter * vec2(32.0, 22.0)) * 0.60);
+      float sunTrail = exp(-pow((cellCenter.x - 0.365) * (u_resolution.x / u_resolution.y), 2.0) * 27.0 - pow(cellCenter.y - 0.392, 2.0) * 118.0)
+        * smoothstep(0.20, 0.35, cellCenter.x)
+        * (1.0 - smoothstep(0.58, 0.73, cellCenter.x));
       float topCloud = smoothstep(0.52, 0.66, cellCenter.x)
         * (1.0 - smoothstep(0.95, 1.0, cellCenter.x))
         * (1.0 - smoothstep(0.11, 0.20, cellCenter.y))
         * fbm(vec2(cellCenter.x * 25.0, cellCenter.y * 38.0 + u_time * 0.03));
-      float upperMist = (sunGlyphField * 0.52 + topCloud * 0.34) * (1.0 - bedGate);
+      float upperMist = (sunGlyphField * 0.46 + sunTrail * 0.72 + topCloud * 0.62) * (1.0 - bedGate);
 
       float cLeftEdge = leftWallEdge(cellCenter.y);
       float cRightEdge = rightWallEdge(cellCenter.y);
       float cUpper = wallUpper(cellCenter.y);
-      float cLeftWall = (1.0 - smoothstep(cLeftEdge - 0.035, cLeftEdge + 0.055, cellCenter.x)) * cUpper;
-      float cRightWall = smoothstep(cRightEdge - 0.05, cRightEdge + 0.04, cellCenter.x) * (1.0 - smoothstep(0.76, 1.0, cellCenter.y));
+      float cLeftWall = (1.0 - smoothstep(cLeftEdge - 0.022, cLeftEdge + 0.034, cellCenter.x)) * cUpper;
+      float cRightWall = smoothstep(cRightEdge - 0.038, cRightEdge + 0.026, cellCenter.x) * (1.0 - smoothstep(0.76, 1.0, cellCenter.y));
       float cBetweenWalls = smoothstep(cLeftEdge - 0.02, cLeftEdge + 0.16, cellCenter.x)
         * (1.0 - smoothstep(cRightEdge - 0.15, cRightEdge + 0.035, cellCenter.x))
         * (1.0 - smoothstep(0.52, 0.70, cellCenter.y));
@@ -653,9 +662,13 @@ function initHeroWebGL() {
       amount *= smoothstep(cHorizon - 0.035, cHorizon + 0.055, cellCenter.y);
       amount *= 1.0 - topStructureMask * (1.0 - bedGate) * 0.82;
       amount += cBetweenWalls * (1.0 - bedGate) * 0.012;
-      amount += (sunGlyphField * 0.24 + topCloud * 0.72) * (1.0 - bedGate);
+      amount += (sunGlyphField * 0.20 + sunTrail * 0.68 + topCloud * 1.12) * (1.0 - bedGate);
       float mound = exp(-abs(cellCenter.x - 0.52) / mix(0.22, 0.70, bedGate));
       amount *= mix(0.22 + mound * 0.78, 1.0, smoothstep(0.34, 0.82, river));
+      float lowerFan = exp(-abs(cellCenter.x - 0.54) / 0.34)
+        * smoothstep(0.58, 0.80, cellCenter.y)
+        * (0.18 + fbm(cellCenter * vec2(18.0, 20.0) + vec2(u_time * 0.02, 4.0)) * 0.18);
+      amount = max(amount, lowerFan * bedGate);
       float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
       amount *= particleGate;
       amount *= u_reveal;
