@@ -194,11 +194,11 @@ body.live .mark span:nth-child(4) {
 .hero-text {
   position: absolute;
   left: 50%;
-  top: 57%;
+  top: 60%;
   z-index: 5;
-  width: min(760px, calc(100% - 48px));
+  width: min(610px, calc(100% - 48px));
   color: rgba(214, 237, 222, 0.96);
-  text-align: center;
+  text-align: left;
   transform:
     translate(-50%, -50%)
     translate(var(--hero-text-offset-x), var(--hero-text-offset-y));
