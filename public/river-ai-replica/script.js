@@ -679,21 +679,31 @@ function initHeroWebGL() {
       float mound = exp(-abs(cellCenter.x - 0.52) / mix(0.22, 0.70, bedGate));
       amount *= mix(0.22 + mound * 0.78, 1.0, smoothstep(0.34, 0.82, river));
       float bedOpen = smoothstep(0.55, 0.98, cellCenter.y);
-      float bedWidth = mix(0.070, 0.150, pow(bedOpen, 0.82));
-      float bedShape = smoothstep(0.39, 0.48, cellCenter.x) * (1.0 - smoothstep(0.555, 0.625, cellCenter.x));
+      float bedWidth = mix(0.080, 0.185, pow(bedOpen, 0.76));
+      float bedRight = mix(0.64, 0.60, smoothstep(0.82, 1.0, cellCenter.y));
+      float bedShape = smoothstep(0.40, 0.49, cellCenter.x) * (1.0 - smoothstep(bedRight, bedRight + 0.085, cellCenter.x));
+      float bottomFade = 1.0 - smoothstep(0.86, 0.99, cellCenter.y);
       float lowerFan = (1.0 - smoothstep(bedWidth, bedWidth + 0.18, abs(cellCenter.x - 0.505)))
         * smoothstep(0.56, 0.76, cellCenter.y)
         * bedShape
-        * (0.26 + fbm(cellCenter * vec2(18.0, 20.0) + vec2(u_time * 0.02, 4.0)) * 0.22);
-      float fanShoulder = (1.0 - smoothstep(bedWidth * 0.82, bedWidth + 0.18, abs(cellCenter.x - 0.515)))
+        * mix(1.0, 0.32, smoothstep(0.86, 1.0, cellCenter.y))
+        * (0.28 + fbm(cellCenter * vec2(18.0, 20.0) + vec2(u_time * 0.02, 4.0)) * 0.24);
+      float fanShoulder = (1.0 - smoothstep(bedWidth * 0.72, bedWidth + 0.22, abs(cellCenter.x - 0.535)))
         * smoothstep(0.66, 0.92, cellCenter.y)
         * bedShape
-        * (0.08 + fbm(cellCenter * vec2(12.0, 16.0) + vec2(3.0, u_time * 0.018)) * 0.08);
+        * bottomFade
+        * (0.10 + fbm(cellCenter * vec2(12.0, 16.0) + vec2(3.0, u_time * 0.018)) * 0.10);
+      float midRiverShoulder = smoothstep(0.44, 0.55, cellCenter.x)
+        * (1.0 - smoothstep(0.72, 0.84, cellCenter.x))
+        * smoothstep(0.66, 0.75, cellCenter.y)
+        * (1.0 - smoothstep(0.83, 0.91, cellCenter.y))
+        * (0.34 + fbm(cellCenter * vec2(16.0, 18.0) + vec2(5.0, u_time * 0.02)) * 0.20);
       amount = max(amount, lowerFan * bedGate);
       amount = max(amount, fanShoulder * bedGate);
+      amount = max(amount, midRiverShoulder * bedGate);
       float lowerSideSuppress = bedGate
-        * smoothstep(0.565, 0.70, cellCenter.x)
-        * smoothstep(0.58, 0.88, cellCenter.y);
+        * smoothstep(0.64, 0.78, cellCenter.x)
+        * smoothstep(0.86, 0.98, cellCenter.y);
       amount *= 1.0 - lowerSideSuppress * 0.90;
       float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
       amount *= particleGate;
@@ -728,8 +738,8 @@ function initHeroWebGL() {
       color = mix(color, inkColor, ink);
       color += glowInk * mix(vec3(0.21, 0.45, 0.52), vec3(0.72, 0.91, 0.86), smoothstep(0.2, 0.72, river));
       color += vec3(0.28, 0.36, 0.32) * rimLeft * groundGate * u_reveal * (0.2 + 0.55 * riverBody) * mix(0.03, 1.0, bedGate);
-      float finalRightDark = smoothstep(0.55, 0.72, uv.x)
-        * smoothstep(0.48, 0.70, uv.y)
+      float finalRightDark = smoothstep(0.62, 0.78, uv.x)
+        * smoothstep(0.78, 0.92, uv.y)
         * (1.0 - smoothstep(0.96, 1.0, uv.y));
       color = mix(color, vec3(0.024, 0.074, 0.205), finalRightDark * 0.70);
       color -= vec3(0.04, 0.08, 0.16) * smoothstep(0.77, 1.0, length(uv - vec2(0.5, 0.5)));
