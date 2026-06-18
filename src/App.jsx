@@ -934,6 +934,9 @@ function PublicationProof() {
             <span key={venue}>{venue}</span>
           ))}
         </div>
+        <a className="proof-source" href="https://xulongt.github.io/#publications" target="_blank" rel="noreferrer">
+          Source: Xulong Tang publication list
+        </a>
       </div>
       <div className="paper-list" aria-label="Featured publications">
         {papers.map((paper) => (
@@ -1059,6 +1062,13 @@ function OpenResearch() {
         });
 
         cards.forEach((card, index) => {
+          const evidenceItems = card.querySelectorAll(
+            ".pillar-evidence figure, .collab-evidence figure",
+          );
+          const evidenceImages = card.querySelectorAll(
+            ".pillar-evidence img, .collab-evidence img",
+          );
+
           gsap.from(card.querySelectorAll(".pipeline-card > *"), {
             x: 48,
             autoAlpha: 0,
@@ -1073,6 +1083,37 @@ function OpenResearch() {
               toggleActions: "play none none reverse",
             },
           });
+
+          if (evidenceItems.length > 0) {
+            gsap.from(evidenceItems, {
+              y: 26,
+              autoAlpha: 0,
+              scale: 0.92,
+              stagger: 0.06,
+              duration: 0.58,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: card,
+                containerAnimation: tween,
+                start: "left 68%",
+                end: "right 30%",
+                toggleActions: "play none none reverse",
+              },
+            });
+
+            gsap.to(evidenceImages, {
+              scale: 1.1,
+              xPercent: index % 2 === 0 ? -4 : 4,
+              ease: "none",
+              scrollTrigger: {
+                trigger: card,
+                containerAnimation: tween,
+                start: "left right",
+                end: "right left",
+                scrub: true,
+              },
+            });
+          }
 
           gsap.to(card, {
             y: index % 2 === 0 ? -32 : 32,
@@ -1115,6 +1156,20 @@ function OpenResearch() {
             <h3>{pillar.title}</h3>
             <strong>{pillar.metric}</strong>
             <span>{pillar.detail}</span>
+            <div className="pillar-evidence" aria-label={`${pillar.title} publication evidence`}>
+              {pillar.evidence.map((paperIndex) => {
+                const paper = papers[paperIndex];
+                return (
+                  <figure key={`${pillar.title}-${paper.title}`}>
+                    <img src={paper.image} alt="" loading="lazy" />
+                    <figcaption>
+                      <span>{paper.venue}</span>
+                      <strong>{paper.type}</strong>
+                    </figcaption>
+                  </figure>
+                );
+              })}
+            </div>
           </article>
         ))}
         <article className="pipeline-card pipeline-card-wide" id="collaborate">
@@ -1125,6 +1180,14 @@ function OpenResearch() {
             Research inquiries should land on evidence: publications, code,
             project pages, prototype media, and clearly scoped collaboration.
           </span>
+          <div className="collab-evidence" aria-label="Featured publication artifacts">
+            {papers.slice(0, 4).map((paper) => (
+              <figure key={`collab-${paper.title}`}>
+                <img src={paper.image} alt="" loading="lazy" />
+                <figcaption>{paper.venue}</figcaption>
+              </figure>
+            ))}
+          </div>
           <MagneticButton href="#contact">Contact the lab</MagneticButton>
         </article>
       </div>

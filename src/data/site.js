@@ -115,21 +115,25 @@ export const pillars = [
     title: "Signals",
     detail: "Music, pose, image, text, and interaction traces become structured inputs for generative research.",
     metric: "input",
+    evidence: [1, 2, 6],
   },
   {
     title: "Representations",
     detail: "Kinematic structure, temporal coherence, and multimodal context are shaped before generation.",
     metric: "latent",
+    evidence: [3, 5, 4],
   },
   {
     title: "Models",
     detail: "Dance generation systems route music, motion, appearance, and group coherence through specialized model paths.",
     metric: "model",
+    evidence: [0, 3, 2],
   },
   {
     title: "Artifacts",
     detail: "Papers, code, project pages, and visual results stay visible as the public evidence layer.",
     metric: "proof",
+    evidence: [0, 1, 4],
   },
 ];
 
