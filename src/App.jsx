@@ -8,7 +8,7 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { CustomEase } from "gsap/CustomEase";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { assetPath, contactLinks, papers, people, pillars, publicationNews } from "./data/site";
+import { assetPath, contactLinks, papers, pillars, publicationNews } from "./data/site";
 
 gsap.registerPlugin(
   useGSAP,
@@ -451,8 +451,13 @@ function HeroEvidence() {
   return (
     <div className="hero-evidence" aria-label="Featured publication evidence">
       {papers.slice(0, 3).map((paper) => (
-        <figure key={paper.title}>
-          <img src={paper.image} alt="" loading="eager" />
+        <figure key={paper.title} style={paperAspectStyle(paper)}>
+          <PaperImage
+            paper={paper}
+            sizes="(max-width: 900px) 32vw, 190px"
+            eager
+            fallback="small"
+          />
           <figcaption>
             <span>{paper.venue}</span>
             <strong>{paper.type}</strong>
@@ -461,6 +466,31 @@ function HeroEvidence() {
       ))}
     </div>
   );
+}
+
+function PaperImage({ paper, sizes, eager = false, fallback = "large", className }) {
+  const fallbackSrc = {
+    small: paper.imageSmall,
+    medium: paper.imageMedium,
+    large: paper.image,
+  }[fallback] || paper.image;
+
+  return (
+    <img
+      className={className}
+      src={fallbackSrc}
+      srcSet={paper.imageSrcSet}
+      sizes={sizes}
+      alt=""
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      fetchPriority={eager ? "high" : "auto"}
+    />
+  );
+}
+
+function paperAspectStyle(paper) {
+  return { "--paper-aspect": paper.imageAspect || 2.2 };
 }
 
 function Waveform() {
@@ -786,7 +816,6 @@ function StageMeter({ activeStage }) {
 function PublicationProof() {
   const proofRef = useRef(null);
   const previewRef = useRef(null);
-  const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
 
   useGSAP(
     () => {
@@ -871,19 +900,7 @@ function PublicationProof() {
           const spotlight = proofRef.current.querySelector(".paper-spotlight");
           const frames = gsap.utils.toArray(".spotlight-frame", spotlight);
           const panels = gsap.utils.toArray(".spotlight-copy-panel", spotlight);
-          const railItems = gsap.utils.toArray(".spotlight-rail-item", spotlight);
           const progressFill = spotlight.querySelector(".spotlight-progress-fill");
-          let currentSpotlightIndex = 0;
-          const syncSpotlightIndex = (progress) => {
-            const nextIndex = Math.min(
-              frames.length - 1,
-              Math.max(0, Math.round(progress * (frames.length - 1))),
-            );
-            if (nextIndex !== currentSpotlightIndex) {
-              currentSpotlightIndex = nextIndex;
-              setActiveSpotlightIndex(nextIndex);
-            }
-          };
 
           gsap.set(frames, {
             autoAlpha: 0,
@@ -892,13 +909,11 @@ function PublicationProof() {
             rotation: (index) => (index % 2 === 0 ? -5 : 5),
             transformOrigin: "50% 60%",
           });
-          gsap.set(".spotlight-frame img", { scale: 1.08, xPercent: 0, yPercent: 0 });
+          gsap.set(".spotlight-frame img", { scale: 1, xPercent: 0, yPercent: 0 });
           gsap.set(frames[0], { autoAlpha: 1, yPercent: 0, scale: 1, rotation: 0 });
-          gsap.set(frames[0].querySelector("img"), { scale: 1.02 });
+          gsap.set(frames[0].querySelector("img"), { scale: 1 });
           gsap.set(panels, { autoAlpha: 0, y: 22 });
           gsap.set(panels[0], { autoAlpha: 1, y: 0 });
-          gsap.set(railItems, { autoAlpha: 0.52, scale: 0.92, transformOrigin: "50% 50%" });
-          gsap.set(railItems[0], { autoAlpha: 1, scale: 1 });
           gsap.set(progressFill, { scaleX: 1 / frames.length, transformOrigin: "left center" });
 
           const spotlightTimeline = gsap.timeline({
@@ -911,22 +926,18 @@ function PublicationProof() {
               pin: true,
               anticipatePin: 1,
               invalidateOnRefresh: true,
-              onUpdate: (self) => syncSpotlightIndex(self.progress),
             },
           });
 
           spotlightTimeline
             .to(progressFill, { scaleX: 1, duration: frames.length - 1 }, 0)
-            .to(".spotlight-stage", { rotationX: 4, rotationY: -3, duration: frames.length - 1 }, 0)
-            .to(".spotlight-rail", { yPercent: -8, duration: frames.length - 1 }, 0);
+            .to(".spotlight-stage", { rotationX: 4, rotationY: -3, duration: frames.length - 1 }, 0);
 
           frames.slice(1).forEach((frame, index) => {
             const currentIndex = index + 1;
             const previousFrame = frames[currentIndex - 1];
             const previousPanel = panels[currentIndex - 1];
             const currentPanel = panels[currentIndex];
-            const previousRail = railItems[currentIndex - 1];
-            const currentRail = railItems[currentIndex];
             const at = currentIndex;
 
             spotlightTimeline
@@ -938,9 +949,9 @@ function PublicationProof() {
                 duration: 0.64,
               }, at - 0.48)
               .to(previousFrame.querySelector("img"), {
-                scale: 1.16,
-                xPercent: currentIndex % 2 === 0 ? -3 : 3,
-                yPercent: -2,
+                scale: 1,
+                xPercent: 0,
+                yPercent: 0,
                 duration: 0.64,
               }, at - 0.48)
               .to(frame, {
@@ -951,15 +962,13 @@ function PublicationProof() {
                 duration: 0.72,
               }, at - 0.4)
               .to(frame.querySelector("img"), {
-                scale: 1.02,
+                scale: 1,
                 xPercent: 0,
                 yPercent: 0,
                 duration: 0.72,
               }, at - 0.4)
               .to(previousPanel, { autoAlpha: 0, y: -20, duration: 0.42 }, at - 0.42)
-              .to(currentPanel, { autoAlpha: 1, y: 0, duration: 0.48 }, at - 0.28)
-              .to(previousRail, { autoAlpha: 0.52, scale: 0.92, duration: 0.34 }, at - 0.36)
-              .to(currentRail, { autoAlpha: 1, scale: 1, duration: 0.36 }, at - 0.28);
+              .to(currentPanel, { autoAlpha: 1, y: 0, duration: 0.48 }, at - 0.28);
           });
         });
       }
@@ -1022,18 +1031,6 @@ function PublicationProof() {
         },
       });
 
-      gsap.to(".source-ledger-card img", {
-        scale: 1.08,
-        xPercent: (index) => (index % 2 === 0 ? -4 : 4),
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".source-ledger",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 0.8,
-        },
-      });
-
       const preview = previewRef.current;
       const xTo = gsap.quickTo(preview, "x", { duration: 0.36, ease: "power3" });
       const yTo = gsap.quickTo(preview, "y", { duration: 0.36, ease: "power3" });
@@ -1064,7 +1061,9 @@ function PublicationProof() {
           preview.querySelector(".preview-venue").textContent = card.dataset.venue;
           preview.querySelector(".preview-type").textContent = card.dataset.type;
           const previewImage = preview.querySelector(".preview-image");
-          previewImage.src = card.dataset.image;
+          previewImage.src = card.dataset.imagePreview;
+          previewImage.srcset = card.dataset.imageSrcset;
+          previewImage.sizes = "320px";
           previewImage.alt = "";
           preview.dataset.accent = card.dataset.accent;
           gsap.to(preview, {
@@ -1131,25 +1130,19 @@ function PublicationProof() {
         <div className="spotlight-stage" aria-hidden="true">
           <img className="spotlight-mark" src={assetPath("assets/brand/malou-mark.svg")} alt="" />
           {papers.map((paper, index) => (
-            <figure className="spotlight-frame" key={`spotlight-frame-${paper.title}`}>
-              <img src={paper.image} alt="" loading={index === 0 ? "eager" : "lazy"} />
+            <figure
+              className="spotlight-frame"
+              key={`spotlight-frame-${paper.title}`}
+              style={paperAspectStyle(paper)}
+            >
+              <PaperImage
+                paper={paper}
+                sizes="(max-width: 900px) 78vw, 52vw"
+                eager={index === 0}
+              />
               <figcaption>
                 <span>{paper.venue}</span>
                 <strong>{paper.type}</strong>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-        <div className="spotlight-rail" aria-hidden="true">
-          {papers.map((paper, index) => (
-            <figure
-              className={`spotlight-rail-item ${index === activeSpotlightIndex ? "is-active" : ""}`}
-              key={`spotlight-rail-${paper.title}`}
-            >
-              <img src={paper.image} alt="" loading="lazy" />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{paper.venue}</strong>
               </figcaption>
             </figure>
           ))}
@@ -1167,11 +1160,16 @@ function PublicationProof() {
             data-venue={paper.venue}
             data-type={paper.type}
             data-image={paper.image}
+            data-image-preview={paper.imageMedium}
+            data-image-srcset={paper.imageSrcSet}
             data-accent={paper.accent}
           >
-            <div className="paper-index" />
-            <figure className="paper-visual">
-              <img src={paper.image} alt="" loading="lazy" />
+            <figure className="paper-visual" style={paperAspectStyle(paper)}>
+              <PaperImage
+                paper={paper}
+                sizes="(max-width: 900px) 100vw, 420px"
+                fallback="medium"
+              />
             </figure>
             <div>
               <p className="paper-meta">
@@ -1217,7 +1215,12 @@ function PublicationProof() {
       </div>
       <div ref={previewRef} className="paper-preview" aria-hidden="true">
         <div className="preview-figure">
-          <img className="preview-image" src={papers[0].image} alt="" />
+          <PaperImage
+            paper={papers[0]}
+            className="preview-image"
+            sizes="320px"
+            fallback="medium"
+          />
         </div>
         <p className="preview-venue">SIGGRAPH 2026</p>
         <p className="preview-type">Motion + Appearance</p>
@@ -1254,8 +1257,15 @@ function SourceLedger() {
               {item.evidence.map((paperIndex) => {
                 const paper = papers[paperIndex];
                 return (
-                  <figure key={`${item.title}-${paper.title}`}>
-                    <img src={paper.image} alt="" loading="lazy" />
+                  <figure
+                    key={`${item.title}-${paper.title}`}
+                    style={paperAspectStyle(paper)}
+                  >
+                    <PaperImage
+                      paper={paper}
+                      sizes="(max-width: 900px) 100vw, 260px"
+                      fallback="small"
+                    />
                     <figcaption>{paper.venue}</figcaption>
                   </figure>
                 );
@@ -1344,10 +1354,6 @@ function OpenResearch() {
           const evidenceItems = card.querySelectorAll(
             ".pillar-evidence figure, .collab-evidence figure",
           );
-          const evidenceImages = card.querySelectorAll(
-            ".pillar-evidence img, .collab-evidence img",
-          );
-
           gsap.from(card.querySelectorAll(".pipeline-card > *"), {
             x: 48,
             autoAlpha: 0,
@@ -1380,18 +1386,6 @@ function OpenResearch() {
               },
             });
 
-            gsap.to(evidenceImages, {
-              scale: 1.1,
-              xPercent: index % 2 === 0 ? -4 : 4,
-              ease: "none",
-              scrollTrigger: {
-                trigger: card,
-                containerAnimation: tween,
-                start: "left right",
-                end: "right left",
-                scrub: true,
-              },
-            });
           }
 
           gsap.to(card, {
@@ -1439,8 +1433,15 @@ function OpenResearch() {
               {pillar.evidence.map((paperIndex) => {
                 const paper = papers[paperIndex];
                 return (
-                  <figure key={`${pillar.title}-${paper.title}`}>
-                    <img src={paper.image} alt="" loading="lazy" />
+                  <figure
+                    key={`${pillar.title}-${paper.title}`}
+                    style={paperAspectStyle(paper)}
+                  >
+                    <PaperImage
+                      paper={paper}
+                      sizes="(max-width: 900px) 31vw, 130px"
+                      fallback="small"
+                    />
                     <figcaption>
                       <span>{paper.venue}</span>
                       <strong>{paper.type}</strong>
@@ -1461,8 +1462,12 @@ function OpenResearch() {
           </span>
           <div className="collab-evidence" aria-label="Featured publication artifacts">
             {papers.slice(0, 4).map((paper) => (
-              <figure key={`collab-${paper.title}`}>
-                <img src={paper.image} alt="" loading="lazy" />
+              <figure key={`collab-${paper.title}`} style={paperAspectStyle(paper)}>
+                <PaperImage
+                  paper={paper}
+                  sizes="(max-width: 900px) 24vw, 140px"
+                  fallback="small"
+                />
                 <figcaption>{paper.venue}</figcaption>
               </figure>
             ))}
@@ -1486,7 +1491,7 @@ function AboutContact() {
       gsap.set(".about-trace-path", { drawSVG: "0% 0%" });
       gsap.set(".contact-signal", { autoAlpha: 0, scale: 0.62, transformOrigin: "50% 50%" });
 
-      gsap.from(".about-copy > *, .people-card, .contact-panel > *", {
+      gsap.from(".about-copy > *, .contact-panel > *", {
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top 74%",
@@ -1545,17 +1550,6 @@ function AboutContact() {
         },
       });
 
-      gsap.to(".about-evidence-tile img", {
-        yPercent: -8,
-        scale: 1.08,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".about-evidence",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 0.8,
-        },
-      });
     },
     { scope: sectionRef },
   );
@@ -1585,16 +1579,6 @@ function AboutContact() {
         </p>
       </div>
 
-      <div className="people-grid" aria-label="MalouTech team">
-        {people.map((person) => (
-          <article className="people-card" key={person.name}>
-            <p>{person.role}</p>
-            <h3>{person.name}</h3>
-            <span>{person.detail}</span>
-          </article>
-        ))}
-      </div>
-
       <div className="about-evidence" aria-label="Research evidence surface">
         <div className="about-evidence-copy">
           <img src={assetPath("assets/brand/malou-mark.svg")} alt="" />
@@ -1610,8 +1594,13 @@ function AboutContact() {
           <figure
             className={`about-evidence-tile ${index === 0 ? "is-large" : ""}`}
             key={`about-${paper.title}`}
+            style={paperAspectStyle(paper)}
           >
-            <img src={paper.image} alt="" loading="lazy" />
+            <PaperImage
+              paper={paper}
+              sizes="(max-width: 900px) 100vw, 320px"
+              fallback="medium"
+            />
             <figcaption>
               <span>{paper.venue}</span>
               <strong>{paper.type}</strong>
