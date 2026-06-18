@@ -50,7 +50,7 @@ function typeText(now) {
   const slide = smooth((elapsed - slideStart) / 1050);
   const canSlide = window.innerWidth >= 768;
   if (canSlide) {
-    document.documentElement.style.setProperty("--hero-text-offset-x", `${(-2.5 * slide).toFixed(2)}vw`);
+    document.documentElement.style.setProperty("--hero-text-offset-x", `${(-25 * slide).toFixed(2)}vw`);
   } else if (slide > 0) {
     heroText.style.opacity = String(1 - slide);
   }
@@ -379,10 +379,10 @@ function createHeroProgram(gl, vertexSource, fragmentSource) {
 }
 
 function createGlyphTexture(gl) {
-  const glyphs = ".:;irsXA253hMHGS#9B&@";
+  const glyphs = " .:-=+*#%@";
   const cell = 48;
-  const cols = 8;
-  const rows = 4;
+  const cols = glyphs.length;
+  const rows = 1;
   const atlas = document.createElement("canvas");
   atlas.width = cols * cell;
   atlas.height = rows * cell;
@@ -394,8 +394,8 @@ function createGlyphTexture(gl) {
   atlasCtx.font = "700 34px ui-monospace, SFMono-Regular, Menlo, monospace";
 
   for (let i = 0; i < glyphs.length; i += 1) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
+    const col = i;
+    const row = 0;
     atlasCtx.fillText(glyphs[i], col * cell + cell / 2, row * cell + cell / 2 + 1);
   }
 
@@ -436,9 +436,9 @@ function initHeroWebGL() {
     uniform float u_reveal;
     uniform sampler2D u_glyphs;
 
-    const float GLYPH_COLS = 8.0;
-    const float GLYPH_ROWS = 4.0;
-    const float GLYPH_COUNT = 25.0;
+    const float GLYPH_COLS = 10.0;
+    const float GLYPH_ROWS = 1.0;
+    const float GLYPH_COUNT = 10.0;
 
     float saturate(float v) {
       return clamp(v, 0.0, 1.0);
@@ -477,6 +477,11 @@ function initHeroWebGL() {
         + (fbm(vec2(z * 3.2, 2.7)) - 0.5) * 0.035;
     }
 
+    float horizonAt(float x) {
+      float bend = x - 0.5;
+      return 0.245 + bend * bend * 0.23;
+    }
+
     vec3 skyColor(vec2 uv) {
       vec3 top = vec3(0.055, 0.205, 0.505);
       vec3 mid = vec3(0.42, 0.66, 0.68);
@@ -504,66 +509,74 @@ function initHeroWebGL() {
       uv.y = 1.0 - uv.y;
 
       vec3 color = skyColor(uv);
-      float horizon = 0.235;
+      float horizon = horizonAt(uv.x);
       float depthRaw = (uv.y - horizon) / (1.0 - horizon);
       float depth = saturate(depthRaw);
       float z = pow(depth, 1.27);
 
-      float cellSize = mix(6.0, 10.5, pow(depth, 0.62));
+      float cellSize = 6.0;
       vec2 cell = floor(frag / cellSize);
       vec2 local = fract(frag / cellSize);
       vec2 cellCenter = (cell + 0.5) * cellSize / u_resolution;
       cellCenter.y = 1.0 - cellCenter.y;
 
-      float cDepthRaw = (cellCenter.y - horizon) / (1.0 - horizon);
+      float cHorizon = horizonAt(cellCenter.x);
+      float cDepthRaw = (cellCenter.y - cHorizon) / (1.0 - cHorizon);
       float cDepth = saturate(cDepthRaw);
       float cz = pow(cDepth, 1.27);
-      float center = riverCenter(cz, u_time);
-      float riverWidth = mix(0.006, 0.162, pow(cz, 1.34));
+      float worldZ = cz * 1.18 + u_time * 0.055;
+      float center = riverCenter(worldZ, u_time);
+      float riverWidth = mix(0.0045, 0.122, pow(cz, 1.38));
       float wallSpan = mix(0.105, 0.44, pow(cz, 1.06));
       float dx = abs(cellCenter.x - center);
       float side = sign(cellCenter.x - center + 0.0001);
 
-      float riverEdgeNoise = (fbm(vec2(cz * 10.0, side * 4.0 + u_time * 0.08)) - 0.5) * riverWidth * 0.26;
+      float riverEdgeNoise = (fbm(vec2(worldZ * 10.0, side * 4.0 + u_time * 0.08)) - 0.5) * riverWidth * 0.28;
       float riverLimit = riverWidth + riverEdgeNoise;
-      float riverCore = 1.0 - smoothstep(riverLimit * 0.18, riverLimit, dx);
-      float riverBody = 1.0 - smoothstep(riverLimit * 0.78, riverLimit * 1.12, dx);
-      float flow = sin(cz * 135.0 - u_time * 7.4 + (cellCenter.x - center) * 34.0);
-      float braid = sin(cz * 68.0 + (cellCenter.x - center) * 55.0 - u_time * 4.0);
-      float riverNoise = fbm(vec2((cellCenter.x - center) * 42.0, cz * 32.0 - u_time * 2.1));
+      float riverCore = 1.0 - smoothstep(riverLimit * 0.10, riverLimit * 0.74, dx);
+      float riverBody = 1.0 - smoothstep(riverLimit * 0.58, riverLimit * 1.04, dx);
+      float flow = sin(worldZ * 135.0 - u_time * 7.4 + (cellCenter.x - center) * 34.0);
+      float braid = sin(worldZ * 68.0 + (cellCenter.x - center) * 55.0 - u_time * 4.0);
+      float riverNoise = fbm(vec2((cellCenter.x - center) * 42.0, worldZ * 32.0 - u_time * 2.1));
       float farFade = smoothstep(0.08, 0.44, cDepth);
-      float river = riverBody * (0.28 + 0.5 * riverNoise + 0.24 * smoothstep(-0.28, 0.95, flow) + 0.18 * smoothstep(0.2, 1.0, braid));
-      river += riverCore * 0.26;
+      float river = riverBody * (0.22 + 0.46 * riverNoise + 0.22 * smoothstep(-0.28, 0.95, flow) + 0.15 * smoothstep(0.2, 1.0, braid));
+      river += riverCore * 0.18;
       river *= mix(0.34, 1.0, farFade);
 
       float wallStart = riverLimit * 1.05;
       float wallEnd = riverLimit + wallSpan;
       float wallBand = smoothstep(wallStart, wallStart + 0.018, dx) * (1.0 - smoothstep(wallEnd, wallEnd + 0.08, dx));
       float wallPos = saturate((dx - wallStart) / max(wallSpan, 0.001));
-      float shelves = sin(cz * 72.0 + wallPos * 22.0 + side * 1.7 + fbm(vec2(cz * 8.0, wallPos * 3.2)) * 4.0);
-      float terrain = fbm(vec2((cellCenter.x - center) * 5.2 + side * 3.0, cz * 10.0 - u_time * 0.08));
-      float canyon = wallBand * (0.24 + 0.78 * terrain) * (0.62 + 0.38 * smoothstep(-0.35, 1.0, shelves)) * smoothstep(0.03, 0.9, cDepth);
+      float shelves = sin(worldZ * 72.0 + wallPos * 22.0 + side * 1.7 + fbm(vec2(worldZ * 8.0, wallPos * 3.2)) * 4.0);
+      float terrain = fbm(vec2((cellCenter.x - center) * 5.2 + side * 3.0, worldZ * 10.0 - u_time * 0.08));
+      float topo = 1.0 - smoothstep(0.018, 0.045, abs(fract((terrain + worldZ * 0.32 + wallPos * 0.36) * 8.0) - 0.5));
+      float canyon = wallBand * (0.24 + 0.72 * terrain + topo * 0.14) * (0.62 + 0.38 * smoothstep(-0.35, 1.0, shelves)) * smoothstep(0.03, 0.9, cDepth);
 
       float rimLeft = exp(-abs(dx - riverLimit) / (0.0028 + cz * 0.0045));
       float ridge = exp(-abs(dx - (riverLimit + wallSpan * 0.74)) / (0.004 + cz * 0.008));
-      float skyDust = smoothstep(horizon - 0.08, horizon + 0.26, cellCenter.y)
+      float skyDust = smoothstep(cHorizon - 0.08, cHorizon + 0.26, cellCenter.y)
         * (1.0 - smoothstep(0.58, 1.0, cellCenter.y))
         * fbm(vec2(cellCenter.x * 11.0, cellCenter.y * 8.0 + u_time * 0.07));
       float dust = skyDust * (1.0 - smoothstep(0.16, 0.42, dx)) * 0.24;
 
-      float groundGate = smoothstep(horizon - 0.02, horizon + 0.06, cellCenter.y) * smoothstep(0.035, 0.22, cDepth);
+      float groundGate = smoothstep(cHorizon - 0.02, cHorizon + 0.06, cellCenter.y) * smoothstep(0.035, 0.22, cDepth);
       float amount = max(max(river * 1.1, canyon * 0.82), dust);
       amount += (rimLeft * 0.44 + ridge * 0.18) * groundGate;
-      amount *= smoothstep(horizon - 0.035, horizon + 0.055, cellCenter.y);
+      amount *= smoothstep(cHorizon - 0.035, cHorizon + 0.055, cellCenter.y);
       float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
       amount *= particleGate;
       amount *= u_reveal;
 
       float jitter = hash(cell + floor(u_time * vec2(6.0, 3.0)));
-      float glyphIndex = floor(clamp(pow(saturate(amount), 0.4) * 23.0 + jitter * 4.0, 0.0, GLYPH_COUNT - 1.0));
+      float glyphIndex = floor(clamp(pow(saturate(amount), 0.42) * (GLYPH_COUNT - 1.0) + jitter * 1.6, 0.0, GLYPH_COUNT - 1.0));
       float glyph = glyphMask(local, glyphIndex);
-      float dot = smoothstep(0.42, 0.15, length(local - 0.5)) * 0.12;
-      float ink = saturate((glyph * 1.15 + dot) * amount);
+      float blurA = glyphMask(local + vec2(0.06, 0.0), glyphIndex);
+      float blurB = glyphMask(local + vec2(-0.06, 0.0), glyphIndex);
+      float blurC = glyphMask(local + vec2(0.0, 0.06), glyphIndex);
+      float blurD = glyphMask(local + vec2(0.0, -0.06), glyphIndex);
+      float softGlyph = mix(glyph, (glyph + blurA + blurB + blurC + blurD) * 0.2, 0.31);
+      float dot = smoothstep(0.38, 0.15, length(local - 0.5)) * 0.035;
+      float ink = saturate((softGlyph * 1.34 + dot) * amount);
 
       vec3 riverColor = mix(vec3(0.58, 0.80, 0.84), vec3(0.91, 0.99, 0.96), saturate(river));
       vec3 canyonColor = mix(vec3(0.31, 0.49, 0.58), vec3(0.74, 0.86, 0.79), saturate(canyon + ridge));
