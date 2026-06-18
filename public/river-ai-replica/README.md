@@ -1,22 +1,29 @@
 # River AI Homepage Motion Study
 
-This is a local static prototype that studies the public river.ai homepage interaction pattern.
+This folder is a local snapshot of the public `river.ai` homepage for motion and shader study.
 
-It recreates the main observed behaviors with original code:
+Snapshot date: 2026-06-18
 
-- full-screen blue hero
-- WebGL ASCII river / canyon field with a 2D canvas fallback
-- typed headline and subline
-- text slide on desktop after the type-in
-- delayed nav and scroll cue reveal
-- cream editorial mission section
-- stack layer hover interaction
-- footer water canvas with click ripples
+Mirrored public resources:
 
-It does not copy River AI's private source, shader source, logo SVG, or media assets.
+- `https://river.ai/`
+- `https://river.ai/styles.css?v=43`
+- `https://river.ai/script.js?v=89`
+- `https://river.ai/assets/hero-static.jpg`
+- public font, favicon, and touch-icon assets referenced by the page
 
-Run with the project dev server and open `/river-ai-replica/`, or run a plain
-static server from `public/`:
+The snapshot is useful for studying:
+
+- WebGL canyon and river rendering
+- halftone particle fields
+- boot timing
+- typed hero text
+- delayed navigation reveal
+- footer water interaction
+
+Production MalouTech work should replace the River branding, copy, assets, links, and exact shader with an owned AI art, motion, and XR visual system.
+
+Run from the project root with the normal dev server, or run a plain static server from `public/`:
 
 ```sh
 cd public

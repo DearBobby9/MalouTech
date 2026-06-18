@@ -1,58 +1,49 @@
-# River AI Public Source Notes
+# River AI Source Study Notes
 
-Observed public files:
+This directory mirrors the public River AI homepage as a study artifact. The snapshot is intended for visual inspection, shader reading, and pixel comparison.
 
-- `https://river.ai/`
-- `https://river.ai/styles.css?v=43`
-- `https://river.ai/script.js?v=89`
+## Public Snapshot
 
-Source maps were not available. The public JavaScript is readable and heavily commented, but it is still a delivered website asset rather than an explicitly licensed source repository.
+- Page: `https://river.ai/`
+- Stylesheet: `https://river.ai/styles.css?v=43`
+- Script: `https://river.ai/script.js?v=89`
+- Static hero still: `https://river.ai/assets/hero-static.jpg`
+- Fonts and icons referenced by the page are stored under `assets/`.
 
-The local study now follows the same broad rendering route: a WebGL hero shader
-drives the river and terrain field, with a 2D canvas fallback for environments
-where WebGL is unavailable.
+Source maps were unavailable. The delivered JavaScript is readable and heavily commented.
 
 ## Transferable Architecture
 
-The homepage is organized around a short boot state machine:
+The homepage uses a short boot sequence:
 
-1. Force scroll to top.
-2. Hide navigation and scroll cue.
-3. Start a full-viewport procedural canvas scene.
-4. Type the hero headline and subline in DOM text.
-5. Reveal the scene behind the text.
-6. Slide or fade the text depending on viewport.
-7. Reveal navigation and scroll cue.
-8. Fade hero text on scroll so it does not collide with navigation.
+1. Force scroll to the top.
+2. Hide navigation, debug controls, and scroll cue during boot.
+3. Start a full-viewport WebGL scene.
+4. Render the canyon, river, clouds, sun, and particle fields in shader passes.
+5. Type the hero headline and subline as DOM text.
+6. Reveal navigation and scroll cue after the visual system stabilizes.
+7. Fade hero text on scroll.
+8. Transition into a cream editorial section.
 
-This pattern is more important than the exact shader. It can be rethemed by swapping the procedural field, copy, palette, and section content.
+## Visual Principles
 
-## Visible Behaviors To Preserve
-
-- The first viewport feels like an environment, not a layout block.
-- The river reads as a depth field: a narrow far channel widens toward the viewer.
-- Terrain particles and river particles move at different speeds.
-- Text enters before the full scene becomes visually dense.
-- Navigation appears after the page has established its mood.
-- The scroll cue is small and late.
-- The next cream section contrasts sharply with the blue hero.
-- A tactile footer canvas rewards clicking water.
-
-## What To Avoid Copying Directly
-
-- River AI logo SVG paths.
-- Exact long shader source.
-- Exact copywriting.
-- Static media assets.
-- Full debug panel code.
+- Treat the first viewport as an environment.
+- Use hard terrain silhouettes to keep hierarchy clear.
+- Use particle density to describe depth, water, cloud, and atmospheric layers.
+- Keep product text outside the densest visual areas.
+- Let motion encode the subject matter instead of adding decorative movement.
 
 ## MalouTech Mapping
 
-For MalouTech, this same pattern can become:
+For MalouTech, the same structure can become:
 
-- Boot canvas: generated motion field, pose skeletons, XR frustums.
-- Typed headline: `AI Art. Human Motion. XR Systems.`
-- Scene reveal: signals split into motion and appearance routes.
-- Navigation reveal: after the research field stabilizes.
-- Second section: nonprofit research method or publication evidence.
-- Footer canvas: motion wave or particle field instead of literal water.
+- Hero scene: AI art, generated human motion, and XR space in one procedural field.
+- Visual language: pose skeletons, motion trails, camera frustums, model routes, and artifact particles.
+- Research narrative: signal to motion model to appearance routing to XR artifact.
+- Publications: real paper evidence in one section with clean thumbnails and links.
+- Mission: nonprofit research position and collaboration principles.
+- Contact: direct email and necessary social links.
+
+## Production Boundary
+
+This folder keeps the River snapshot isolated under `public/river-ai-replica/`. MalouTech production pages should use owned copy, assets, links, logo, and shader code derived from the learned architecture.
