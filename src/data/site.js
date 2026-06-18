@@ -148,7 +148,7 @@ export const people = [
     name: "Kaixing Yang",
     role: "CTO & Co-Founder",
     detail:
-      "Research collaborator across dance generation, group motion, and retrieval systems in the publication seed list.",
+      "Research collaborator across dance generation, group motion, and retrieval systems in the publication record.",
   },
 ];
 
@@ -157,6 +157,6 @@ export const contactLinks = [
   { label: "Research email", value: "xulong.tang@maloutech.com", href: "mailto:xulong.tang@maloutech.com" },
   { label: "GitHub", value: "MalouTech", href: "https://github.com/MalouTech" },
   { label: "X / Twitter", value: "@Malou_Tech_Inc", href: "https://twitter.com/Malou_Tech_Inc" },
-  { label: "Instagram", value: "@malou_tech", href: "https://www.instagram.com/malou_tech" },
-  { label: "LinkedIn", value: "Malou Tech Inc", href: "https://www.linkedin.com/company/malou-tech-inc/about/" },
+  { label: "Instagram", value: "@Malou_Tech_Inc", href: "https://www.instagram.com/Malou_Tech_Inc" },
+  { label: "LinkedIn", value: "@Malou_Tech_Inc", href: "https://www.linkedin.com/company/malou-tech-inc/about/" },
 ];

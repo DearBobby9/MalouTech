@@ -1248,6 +1248,35 @@ function AboutContact() {
           },
           duration: 0.7,
         }, 0.2);
+
+      ScrollTrigger.batch(".about-evidence-tile", {
+        start: "top 82%",
+        once: true,
+        onEnter: (batch) => {
+          gsap.from(batch, {
+            y: 46,
+            autoAlpha: 0,
+            scale: 0.94,
+            rotation: (index) => (index % 2 === 0 ? -1.4 : 1.4),
+            duration: 0.78,
+            ease: "power3.out",
+            stagger: { amount: 0.32, from: "center" },
+            overwrite: true,
+          });
+        },
+      });
+
+      gsap.to(".about-evidence-tile img", {
+        yPercent: -8,
+        scale: 1.08,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".about-evidence",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 0.8,
+        },
+      });
     },
     { scope: sectionRef },
   );
@@ -1272,9 +1301,8 @@ function AboutContact() {
         <h2>Nonprofit research for expressive human-AI creation.</h2>
         <p>
           MalouTech connects AI-generated art, 3D human motion generation,
-          multimodal learning, and extended reality. The public site should make
-          the evidence visible: who is behind the work, which papers support it,
-          and how collaborators can reach the team.
+          multimodal learning, and extended reality through public research
+          outputs, project pages, prototype media, and collaboration channels.
         </p>
       </div>
 
@@ -1285,6 +1313,31 @@ function AboutContact() {
             <h3>{person.name}</h3>
             <span>{person.detail}</span>
           </article>
+        ))}
+      </div>
+
+      <div className="about-evidence" aria-label="Research evidence surface">
+        <div className="about-evidence-copy">
+          <img src="/assets/brand/malou-mark.svg" alt="" />
+          <p>Evidence surface</p>
+          <h3>Publication artifacts form the lab's public research surface.</h3>
+          <span>
+            Recent work spans motion-appearance video generation, XR dance
+            synthesis, group choreography, retrieval, and token-based
+            music-to-dance modeling.
+          </span>
+        </div>
+        {papers.slice(0, 5).map((paper, index) => (
+          <figure
+            className={`about-evidence-tile ${index === 0 ? "is-large" : ""}`}
+            key={`about-${paper.title}`}
+          >
+            <img src={paper.image} alt="" loading="lazy" />
+            <figcaption>
+              <span>{paper.venue}</span>
+              <strong>{paper.type}</strong>
+            </figcaption>
+          </figure>
         ))}
       </div>
 

@@ -1358,6 +1358,119 @@ a {
   line-height: 1.55;
 }
 
+.about-evidence {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  width: min(1180px, 100%);
+  margin-top: clamp(44px, 7vw, 92px);
+  align-items: stretch;
+}
+
+.about-evidence-copy {
+  position: relative;
+  grid-column: span 5;
+  min-height: 360px;
+  border: 1px solid rgba(237, 230, 216, 0.14);
+  background:
+    radial-gradient(circle at 20% 18%, rgba(102, 198, 200, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(237, 230, 216, 0.07), transparent 62%),
+    rgba(26, 32, 34, 0.78);
+  padding: clamp(26px, 4vw, 40px);
+  overflow: hidden;
+}
+
+.about-evidence-copy img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  opacity: 0.82;
+  filter: drop-shadow(0 0 24px rgba(102, 198, 200, 0.18));
+}
+
+.about-evidence-copy p,
+.about-evidence-tile span {
+  color: var(--amber);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.about-evidence-copy h3 {
+  margin: clamp(42px, 5vw, 70px) 0 0;
+  color: var(--paper);
+  font-size: clamp(2rem, 3.5vw, 4.4rem);
+  line-height: 0.98;
+  font-weight: 520;
+}
+
+.about-evidence-copy > span {
+  display: block;
+  max-width: 42ch;
+  margin-top: 22px;
+  color: rgba(237, 230, 216, 0.68);
+  line-height: 1.55;
+}
+
+.about-evidence-tile {
+  position: relative;
+  grid-column: span 3;
+  min-height: 174px;
+  margin: 0;
+  border: 1px solid rgba(237, 230, 216, 0.12);
+  background: rgba(9, 11, 12, 0.38);
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.about-evidence-tile.is-large {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+
+.about-evidence-tile img {
+  width: 100%;
+  height: 100%;
+  min-height: 174px;
+  object-fit: cover;
+  filter: saturate(0.95) contrast(0.96);
+  transform: scale(1.02);
+  will-change: transform;
+}
+
+.about-evidence-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 44%, rgba(9, 11, 12, 0.86)),
+    linear-gradient(90deg, rgba(237, 230, 216, 0.07) 1px, transparent 1px);
+  background-size: auto, 18px 18px;
+  pointer-events: none;
+}
+
+.about-evidence-tile figcaption {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.about-evidence-tile strong {
+  color: rgba(237, 230, 216, 0.82);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .contact-panel {
   position: relative;
   z-index: 2;
@@ -1662,6 +1775,36 @@ a {
 
   .people-card {
     min-height: 220px;
+  }
+
+  .about-evidence {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .about-evidence-copy,
+  .about-evidence-tile,
+  .about-evidence-tile.is-large {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .about-evidence-copy {
+    min-height: 310px;
+  }
+
+  .about-evidence-copy h3 {
+    font-size: clamp(2rem, 9.5vw, 3.35rem);
+    line-height: 1.02;
+  }
+
+  .about-evidence-tile,
+  .about-evidence-tile img {
+    min-height: 154px;
+  }
+
+  .about-evidence-tile figcaption {
+    padding: 10px;
   }
 
   .contact-panel h2,
