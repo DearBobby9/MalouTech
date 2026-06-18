@@ -497,7 +497,7 @@ function initHeroWebGL() {
     }
 
     float riverbedGate(float y) {
-      return smoothstep(0.54, 0.72, y);
+      return smoothstep(0.50, 0.68, y);
     }
 
     float terrainHeight(vec2 p) {
@@ -565,12 +565,14 @@ function initHeroWebGL() {
       color = mix(color, vec3(1.0, 0.96, 0.78), sunCore * 0.92);
       color += vec3(0.92, 0.58, 0.34) * sunGlow * 0.42;
       color += vec3(0.42, 0.28, 0.25) * sunHalo * 0.18;
-      float lowerMouth = exp(-abs(uv.x - 0.565) / 0.16) * smoothstep(0.54, 0.74, uv.y);
+      float lowerMouth = exp(-abs(uv.x - 0.565) / 0.18) * smoothstep(0.52, 0.72, uv.y);
       float notchShadow = exp(-abs(uv.x - 0.586) / 0.052)
         * smoothstep(0.50, 0.58, uv.y)
         * (1.0 - smoothstep(0.60, 0.70, uv.y));
-      color = mix(color, vec3(0.060, 0.160, 0.335), lowerMouth * 0.34);
+      float deepChannel = exp(-abs(uv.x - 0.570) / 0.088) * smoothstep(0.50, 0.74, uv.y);
+      color = mix(color, vec3(0.045, 0.125, 0.285), lowerMouth * 0.52);
       color = mix(color, vec3(0.038, 0.110, 0.255), notchShadow * 0.62);
+      color = mix(color, vec3(0.032, 0.095, 0.235), deepChannel * 0.38);
 
       float horizon = horizonAt(uv.x);
       float depthRaw = (uv.y - horizon) / (1.0 - horizon);
@@ -665,9 +667,9 @@ function initHeroWebGL() {
       amount += (sunGlyphField * 0.20 + sunTrail * 0.68 + topCloud * 1.12) * (1.0 - bedGate);
       float mound = exp(-abs(cellCenter.x - 0.52) / mix(0.22, 0.70, bedGate));
       amount *= mix(0.22 + mound * 0.78, 1.0, smoothstep(0.34, 0.82, river));
-      float lowerFan = exp(-abs(cellCenter.x - 0.54) / 0.34)
-        * smoothstep(0.58, 0.80, cellCenter.y)
-        * (0.18 + fbm(cellCenter * vec2(18.0, 20.0) + vec2(u_time * 0.02, 4.0)) * 0.18);
+      float lowerFan = exp(-abs(cellCenter.x - 0.54) / 0.46)
+        * smoothstep(0.53, 0.76, cellCenter.y)
+        * (0.22 + fbm(cellCenter * vec2(18.0, 20.0) + vec2(u_time * 0.02, 4.0)) * 0.24);
       amount = max(amount, lowerFan * bedGate);
       float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
       amount *= particleGate;
