@@ -5,7 +5,7 @@ This is a local static prototype that studies the public river.ai homepage inter
 It recreates the main observed behaviors with original code:
 
 - full-screen blue hero
-- projected particle river / canyon field
+- WebGL ASCII river / canyon field with a 2D canvas fallback
 - typed headline and subline
 - text slide on desktop after the type-in
 - delayed nav and scroll cue reveal

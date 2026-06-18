@@ -8,6 +8,10 @@ Observed public files:
 
 Source maps were not available. The public JavaScript is readable and heavily commented, but it is still a delivered website asset rather than an explicitly licensed source repository.
 
+The local study now follows the same broad rendering route: a WebGL hero shader
+drives the river and terrain field, with a 2D canvas fallback for environments
+where WebGL is unavailable.
+
 ## Transferable Architecture
 
 The homepage is organized around a short boot state machine:

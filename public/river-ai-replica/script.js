@@ -80,7 +80,7 @@ function updateNav() {
   }
 }
 
-function initHeroCanvas() {
+function initHero2DCanvas() {
   const ctx = heroCanvas.getContext("2d", { alpha: false });
   const riverGlyphs = ".:;irsXA253hMHGS#9B&@";
   const canyonGlyphs = ".,:;irsXA253hMHGS#";
@@ -355,6 +355,308 @@ function initHeroCanvas() {
   size();
   window.addEventListener("resize", size);
   requestAnimationFrame(draw);
+}
+
+function createHeroShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(shader) || "Shader compile failed");
+  }
+  return shader;
+}
+
+function createHeroProgram(gl, vertexSource, fragmentSource) {
+  const program = gl.createProgram();
+  gl.attachShader(program, createHeroShader(gl, gl.VERTEX_SHADER, vertexSource));
+  gl.attachShader(program, createHeroShader(gl, gl.FRAGMENT_SHADER, fragmentSource));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(program) || "Program link failed");
+  }
+  return program;
+}
+
+function createGlyphTexture(gl) {
+  const glyphs = ".:;irsXA253hMHGS#9B&@";
+  const cell = 48;
+  const cols = 8;
+  const rows = 4;
+  const atlas = document.createElement("canvas");
+  atlas.width = cols * cell;
+  atlas.height = rows * cell;
+  const atlasCtx = atlas.getContext("2d");
+  atlasCtx.clearRect(0, 0, atlas.width, atlas.height);
+  atlasCtx.fillStyle = "#fff";
+  atlasCtx.textAlign = "center";
+  atlasCtx.textBaseline = "middle";
+  atlasCtx.font = "700 34px ui-monospace, SFMono-Regular, Menlo, monospace";
+
+  for (let i = 0; i < glyphs.length; i += 1) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    atlasCtx.fillText(glyphs[i], col * cell + cell / 2, row * cell + cell / 2 + 1);
+  }
+
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return texture;
+}
+
+function initHeroWebGL() {
+  const gl = heroCanvas.getContext("webgl", {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    preserveDrawingBuffer: false,
+  });
+
+  if (!gl) return false;
+
+  const vertexSource = `
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  const fragmentSource = `
+    precision highp float;
+
+    uniform vec2 u_resolution;
+    uniform float u_time;
+    uniform float u_reveal;
+    uniform sampler2D u_glyphs;
+
+    const float GLYPH_COLS = 8.0;
+    const float GLYPH_ROWS = 4.0;
+    const float GLYPH_COUNT = 25.0;
+
+    float saturate(float v) {
+      return clamp(v, 0.0, 1.0);
+    }
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = hash(i);
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+
+    float fbm(vec2 p) {
+      float value = 0.0;
+      float amp = 0.5;
+      for (int i = 0; i < 5; i++) {
+        value += noise(p) * amp;
+        p = p * 2.03 + vec2(17.7, 9.2);
+        amp *= 0.5;
+      }
+      return value;
+    }
+
+    float riverCenter(float z, float t) {
+      return 0.5
+        + sin(z * 6.1 - t * 0.16) * 0.048
+        + sin(z * 15.3 + t * 0.07) * 0.018
+        + (fbm(vec2(z * 3.2, 2.7)) - 0.5) * 0.035;
+    }
+
+    vec3 skyColor(vec2 uv) {
+      vec3 top = vec3(0.055, 0.205, 0.505);
+      vec3 mid = vec3(0.42, 0.66, 0.68);
+      vec3 low = vec3(0.058, 0.190, 0.455);
+      vec3 color = mix(top, mid, smoothstep(0.12, 0.64, uv.y));
+      color = mix(color, low, smoothstep(0.66, 1.0, uv.y));
+      float glow = exp(-distance(uv, vec2(0.52, 0.5)) * 4.2);
+      color += vec3(0.08, 0.13, 0.11) * glow;
+      return color;
+    }
+
+    float glyphMask(vec2 local, float glyphIndex) {
+      float index = clamp(floor(glyphIndex), 0.0, GLYPH_COUNT - 1.0);
+      float col = mod(index, GLYPH_COLS);
+      float row = floor(index / GLYPH_COLS);
+      vec2 pad = vec2(0.08);
+      vec2 safeLocal = mix(pad, 1.0 - pad, local);
+      vec2 uv = (vec2(col, row) + safeLocal) / vec2(GLYPH_COLS, GLYPH_ROWS);
+      return texture2D(u_glyphs, uv).a;
+    }
+
+    void main() {
+      vec2 frag = gl_FragCoord.xy;
+      vec2 uv = frag / u_resolution;
+      uv.y = 1.0 - uv.y;
+
+      vec3 color = skyColor(uv);
+      float horizon = 0.235;
+      float depthRaw = (uv.y - horizon) / (1.0 - horizon);
+      float depth = saturate(depthRaw);
+      float z = pow(depth, 1.27);
+
+      float cellSize = mix(6.0, 10.5, pow(depth, 0.62));
+      vec2 cell = floor(frag / cellSize);
+      vec2 local = fract(frag / cellSize);
+      vec2 cellCenter = (cell + 0.5) * cellSize / u_resolution;
+      cellCenter.y = 1.0 - cellCenter.y;
+
+      float cDepthRaw = (cellCenter.y - horizon) / (1.0 - horizon);
+      float cDepth = saturate(cDepthRaw);
+      float cz = pow(cDepth, 1.27);
+      float center = riverCenter(cz, u_time);
+      float riverWidth = mix(0.006, 0.162, pow(cz, 1.34));
+      float wallSpan = mix(0.105, 0.44, pow(cz, 1.06));
+      float dx = abs(cellCenter.x - center);
+      float side = sign(cellCenter.x - center + 0.0001);
+
+      float riverEdgeNoise = (fbm(vec2(cz * 10.0, side * 4.0 + u_time * 0.08)) - 0.5) * riverWidth * 0.26;
+      float riverLimit = riverWidth + riverEdgeNoise;
+      float riverCore = 1.0 - smoothstep(riverLimit * 0.18, riverLimit, dx);
+      float riverBody = 1.0 - smoothstep(riverLimit * 0.78, riverLimit * 1.12, dx);
+      float flow = sin(cz * 135.0 - u_time * 7.4 + (cellCenter.x - center) * 34.0);
+      float braid = sin(cz * 68.0 + (cellCenter.x - center) * 55.0 - u_time * 4.0);
+      float riverNoise = fbm(vec2((cellCenter.x - center) * 42.0, cz * 32.0 - u_time * 2.1));
+      float farFade = smoothstep(0.08, 0.44, cDepth);
+      float river = riverBody * (0.28 + 0.5 * riverNoise + 0.24 * smoothstep(-0.28, 0.95, flow) + 0.18 * smoothstep(0.2, 1.0, braid));
+      river += riverCore * 0.26;
+      river *= mix(0.34, 1.0, farFade);
+
+      float wallStart = riverLimit * 1.05;
+      float wallEnd = riverLimit + wallSpan;
+      float wallBand = smoothstep(wallStart, wallStart + 0.018, dx) * (1.0 - smoothstep(wallEnd, wallEnd + 0.08, dx));
+      float wallPos = saturate((dx - wallStart) / max(wallSpan, 0.001));
+      float shelves = sin(cz * 72.0 + wallPos * 22.0 + side * 1.7 + fbm(vec2(cz * 8.0, wallPos * 3.2)) * 4.0);
+      float terrain = fbm(vec2((cellCenter.x - center) * 5.2 + side * 3.0, cz * 10.0 - u_time * 0.08));
+      float canyon = wallBand * (0.24 + 0.78 * terrain) * (0.62 + 0.38 * smoothstep(-0.35, 1.0, shelves)) * smoothstep(0.03, 0.9, cDepth);
+
+      float rimLeft = exp(-abs(dx - riverLimit) / (0.0028 + cz * 0.0045));
+      float ridge = exp(-abs(dx - (riverLimit + wallSpan * 0.74)) / (0.004 + cz * 0.008));
+      float skyDust = smoothstep(horizon - 0.08, horizon + 0.26, cellCenter.y)
+        * (1.0 - smoothstep(0.58, 1.0, cellCenter.y))
+        * fbm(vec2(cellCenter.x * 11.0, cellCenter.y * 8.0 + u_time * 0.07));
+      float dust = skyDust * (1.0 - smoothstep(0.16, 0.42, dx)) * 0.24;
+
+      float groundGate = smoothstep(horizon - 0.02, horizon + 0.06, cellCenter.y) * smoothstep(0.035, 0.22, cDepth);
+      float amount = max(max(river * 1.1, canyon * 0.82), dust);
+      amount += (rimLeft * 0.44 + ridge * 0.18) * groundGate;
+      amount *= smoothstep(horizon - 0.035, horizon + 0.055, cellCenter.y);
+      float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
+      amount *= particleGate;
+      amount *= u_reveal;
+
+      float jitter = hash(cell + floor(u_time * vec2(6.0, 3.0)));
+      float glyphIndex = floor(clamp(pow(saturate(amount), 0.4) * 23.0 + jitter * 4.0, 0.0, GLYPH_COUNT - 1.0));
+      float glyph = glyphMask(local, glyphIndex);
+      float dot = smoothstep(0.42, 0.15, length(local - 0.5)) * 0.12;
+      float ink = saturate((glyph * 1.15 + dot) * amount);
+
+      vec3 riverColor = mix(vec3(0.58, 0.80, 0.84), vec3(0.91, 0.99, 0.96), saturate(river));
+      vec3 canyonColor = mix(vec3(0.31, 0.49, 0.58), vec3(0.74, 0.86, 0.79), saturate(canyon + ridge));
+      vec3 dustColor = vec3(0.74, 0.86, 0.84);
+      vec3 inkColor = mix(canyonColor, riverColor, smoothstep(0.16, 0.48, river));
+      inkColor = mix(inkColor, dustColor, smoothstep(0.02, 0.16, dust) * (1.0 - river));
+
+      color -= vec3(0.03, 0.08, 0.13) * wallBand * smoothstep(0.18, 0.9, cDepth) * (0.18 + wallPos * 0.32);
+      color = mix(color, inkColor, ink);
+      color += vec3(0.28, 0.36, 0.32) * rimLeft * groundGate * u_reveal * (0.2 + 0.55 * riverBody);
+      color -= vec3(0.04, 0.08, 0.16) * smoothstep(0.77, 1.0, length(uv - vec2(0.5, 0.5)));
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  let program;
+  try {
+    program = createHeroProgram(gl, vertexSource, fragmentSource);
+  } catch (error) {
+    console.warn("[river-study] WebGL hero unavailable", error);
+    return true;
+  }
+
+  const positions = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positions);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+    gl.STATIC_DRAW,
+  );
+
+  const glyphTexture = createGlyphTexture(gl);
+  const aPosition = gl.getAttribLocation(program, "a_position");
+  const uResolution = gl.getUniformLocation(program, "u_resolution");
+  const uTime = gl.getUniformLocation(program, "u_time");
+  const uReveal = gl.getUniformLocation(program, "u_reveal");
+  const uGlyphs = gl.getUniformLocation(program, "u_glyphs");
+
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let lastDraw = 0;
+
+  function size() {
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const rect = hero.getBoundingClientRect();
+    width = Math.max(2, Math.round(rect.width * dpr));
+    height = Math.max(2, Math.round(rect.height * dpr));
+    heroCanvas.width = width;
+    heroCanvas.height = height;
+    heroCanvas.style.width = `${rect.width}px`;
+    heroCanvas.style.height = `${rect.height}px`;
+    gl.viewport(0, 0, width, height);
+  }
+
+  function draw(now) {
+    if (now - lastDraw < frameInterval) {
+      requestAnimationFrame(draw);
+      return;
+    }
+    lastDraw = now;
+
+    const elapsed = now - heroState.startedAt;
+    const t = elapsed * 0.001;
+    heroState.reveal = prefersReduced ? 1 : smooth((elapsed - 2550) / 1700);
+
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positions);
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, glyphTexture);
+    gl.uniform1i(uGlyphs, 0);
+    gl.uniform2f(uResolution, width, height);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uReveal, heroState.reveal);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    typeText(now);
+    if (elapsed > 1550) showChrome();
+    requestAnimationFrame(draw);
+  }
+
+  size();
+  window.addEventListener("resize", size);
+  requestAnimationFrame(draw);
+  return true;
+}
+
+function initHeroCanvas() {
+  if (!prefersReduced && initHeroWebGL()) return;
+  initHero2DCanvas();
 }
 
 function initStack() {
