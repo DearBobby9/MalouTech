@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>River AI Motion Study</title>
+    <meta
+      name="description"
+      content="A local motion study recreating the river.ai homepage entrance behavior with original code."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231b5b91'/%3E%3Cpath d='M6 11h8M18 11h8M6 20h8M18 20h8' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="booting">
+    <nav class="nav" id="nav" aria-label="Primary navigation">
+      <a href="#hero" class="wordmark" aria-label="River study home">
+        <span class="mark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span>river</span>
+      </a>
+      <div class="nav-links">
+        <a href="#product">API</a>
+        <a href="#mission">Blog</a>
+        <a href="#footer">Careers</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="hero" id="hero">
+        <div class="hero-placeholder" aria-hidden="true"></div>
+        <canvas class="hero-ascii" id="asciiRiver" aria-hidden="true"></canvas>
+        <div class="hero-vignette" aria-hidden="true"></div>
+
+        <div class="hero-text" id="heroText" aria-hidden="true">
+          <div class="hero-text-headline" id="heroHeadline"></div>
+          <div class="hero-text-sub" id="heroSubline"></div>
+        </div>
+
+        <h1 class="sr-only">Intelligence that flows with you.</h1>
+        <p class="sr-only">A local study of the river.ai entrance animation.</p>
+
+        <div class="scroll-cue" id="scrollCue" aria-hidden="true">
+          <span>Scroll</span>
+          <span class="line"></span>
+        </div>
+      </section>
+
+      <section class="mission" id="mission">
+        <p class="section-label">Mission</p>
+        <p class="mission-body">
+          Personal AI should feel owned, local, and shaped by the person using it.
+        </p>
+        <p class="mission-copy">
+          This section mirrors the reference structure: a large editorial claim,
+          generous cream space, and a stack diagram that turns the scroll from
+          cinematic entry into product architecture.
+        </p>
+
+        <div class="stack-viz" aria-label="Personal AI stack">
+          <div class="stack-scene">
+            <button class="stack-layer" type="button" style="--i:0">
+              <span>Hardware</span>
+            </button>
+            <button class="stack-layer" type="button" style="--i:1">
+              <span>Infrastructure</span>
+            </button>
+            <button class="stack-layer" type="button" style="--i:2">
+              <span>Models</span>
+            </button>
+            <button class="stack-layer" type="button" style="--i:3">
+              <span>Interfaces</span>
+            </button>
+          </div>
+          <div class="stack-notes">
+            <span>Hover the layers</span>
+            <strong id="stackReadout">Interfaces</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="product" id="product">
+        <p class="section-label">API</p>
+        <h2>Train models that carry your context.</h2>
+        <p>
+          A quiet product band follows the hero, keeping the page grounded after
+          the animated opening. The original site uses this as a bridge from
+          brand story to tools.
+        </p>
+        <div class="chips" aria-label="API themes">
+          <span>Fine-tuning</span>
+          <span>Open models</span>
+          <span>Local context</span>
+          <span>Personal agents</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" id="footer">
+      <div class="footer-grid">
+        <div>
+          <a href="#hero" class="footer-wordmark">river</a>
+          <p>Intelligence that flows with you</p>
+        </div>
+        <div>
+          <h3>Product</h3>
+          <a href="#product">API</a>
+        </div>
+        <div>
+          <h3>Company</h3>
+          <a href="#mission">Mission</a>
+        </div>
+        <div>
+          <h3>Connect</h3>
+          <a href="#hero">Home</a>
+        </div>
+      </div>
+      <div class="river-stage" id="riverStage" role="img" aria-label="Animated footer river">
+        <span class="river-hint">Click the water</span>
+        <canvas id="riverCanvas"></canvas>
+      </div>
+      <div class="footer-meta">
+        <span>Local motion study</span>
+        <span>Original code</span>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
