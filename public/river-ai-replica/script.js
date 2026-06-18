@@ -50,7 +50,7 @@ function typeText(now) {
   const slide = smooth((elapsed - slideStart) / 1050);
   const canSlide = window.innerWidth >= 768;
   if (canSlide) {
-    document.documentElement.style.setProperty("--hero-text-offset-x", `${(-12 * slide).toFixed(2)}vw`);
+    document.documentElement.style.setProperty("--hero-text-offset-x", `${(-2.5 * slide).toFixed(2)}vw`);
   } else if (slide > 0) {
     heroText.style.opacity = String(1 - slide);
   }
@@ -82,15 +82,79 @@ function updateNav() {
 
 function initHeroCanvas() {
   const ctx = heroCanvas.getContext("2d", { alpha: false });
-  const glyphs = " .,:;irsXA253hMHGS#9B&@";
+  const riverGlyphs = ".:;irsXA253hMHGS#9B&@";
+  const canyonGlyphs = ".,:;irsXA253hMHGS#";
+  const dustGlyphs = ".,:;irs";
+  const riverParticles = [];
+  const canyonParticles = [];
+  const dustParticles = [];
   let width = 0;
   let height = 0;
+  let cssWidth = 0;
+  let cssHeight = 0;
   let dpr = 1;
   let lastDraw = 0;
+
+  function frac(value) {
+    return value - Math.floor(value);
+  }
+
+  function hash(seed) {
+    return frac(Math.sin(seed * 127.1 + 311.7) * 43758.5453123);
+  }
+
+  function mix(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function rebuildParticles() {
+    riverParticles.length = 0;
+    canyonParticles.length = 0;
+    dustParticles.length = 0;
+
+    const area = cssWidth * cssHeight;
+    const riverCount = clamp(Math.round(area / 280), 1800, 6200);
+    const canyonCount = clamp(Math.round(area / 260), 2200, 7200);
+    const dustCount = clamp(Math.round(area / 760), 700, 2600);
+
+    for (let i = 0; i < riverCount; i += 1) {
+      const spread = Math.pow(hash(i + 8.13), 0.62);
+      const sign = hash(i + 91.7) > 0.5 ? 1 : -1;
+      riverParticles.push({
+        z: hash(i + 0.11),
+        lane: sign * spread,
+        wobble: hash(i + 17.2) * 2 - 1,
+        seed: hash(i + 41.8),
+        speed: mix(0.038, 0.088, hash(i + 5.4)),
+      });
+    }
+
+    for (let i = 0; i < canyonCount; i += 1) {
+      canyonParticles.push({
+        z: hash(i + 2.51),
+        side: hash(i + 33.9) > 0.5 ? 1 : -1,
+        wall: Math.pow(hash(i + 10.7), 1.28),
+        shelf: hash(i + 70.2),
+        seed: hash(i + 4.6),
+        speed: mix(0.006, 0.022, hash(i + 20.8)),
+      });
+    }
+
+    for (let i = 0; i < dustCount; i += 1) {
+      dustParticles.push({
+        x: hash(i + 15.9),
+        z: hash(i + 80.3),
+        seed: hash(i + 62.1),
+        speed: mix(0.004, 0.014, hash(i + 22.4)),
+      });
+    }
+  }
 
   function size() {
     dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const rect = hero.getBoundingClientRect();
+    cssWidth = rect.width;
+    cssHeight = rect.height;
     width = Math.max(2, Math.round(rect.width * dpr));
     height = Math.max(2, Math.round(rect.height * dpr));
     heroCanvas.width = width;
@@ -98,6 +162,172 @@ function initHeroCanvas() {
     heroCanvas.style.width = `${rect.width}px`;
     heroCanvas.style.height = `${rect.height}px`;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    rebuildParticles();
+  }
+
+  function riverCenter(z, t) {
+    return (
+      0.5 +
+      Math.sin(z * 6.5 - t * 0.16) * 0.045 +
+      Math.sin(z * 15.5 + t * 0.07) * 0.018
+    );
+  }
+
+  function project(z) {
+    const horizon = height * 0.27;
+    const v = Math.pow(clamp01(z), 1.54);
+    return {
+      v,
+      y: horizon + v * height * 0.78,
+      riverWidth: mix(width * 0.014, width * 0.168, Math.pow(v, 1.22)),
+      wallSpan: mix(width * 0.11, width * 0.46, Math.pow(v, 1.08)),
+      font: mix(5.4 * dpr, 10.6 * dpr, v),
+    };
+  }
+
+  function glyphFrom(set, amount, seed, t) {
+    const shimmer = Math.sin(t * 7 + seed * 19) * 0.5 + 0.5;
+    const index = clamp(Math.floor((amount * 0.78 + shimmer * 0.22) * set.length), 0, set.length - 1);
+    return set[index];
+  }
+
+  function fillBackdrop(t) {
+    const sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, "#113b86");
+    sky.addColorStop(0.34, "#256a9b");
+    sky.addColorStop(0.6, "#6ca6af");
+    sky.addColorStop(1, "#123a82");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    const glow = ctx.createRadialGradient(width * 0.51, height * 0.48, 0, width * 0.51, height * 0.48, width * 0.58);
+    glow.addColorStop(0, "rgba(210, 234, 219, 0.28)");
+    glow.addColorStop(0.36, "rgba(151, 208, 207, 0.16)");
+    glow.addColorStop(1, "rgba(17, 59, 134, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.globalAlpha = 0.22 * heroState.reveal;
+    ctx.strokeStyle = "rgba(214, 237, 222, 0.18)";
+    ctx.lineWidth = 1 * dpr;
+    for (let i = 0; i < 7; i += 1) {
+      const z = i / 6;
+      const p = project(mix(0.1, 0.98, z));
+      const cx = riverCenter(z, t) * width;
+      ctx.beginPath();
+      ctx.moveTo(cx - p.riverWidth * 2.1 - p.wallSpan * 0.5, p.y);
+      ctx.lineTo(cx - p.riverWidth * 1.25, p.y + 24 * dpr);
+      ctx.moveTo(cx + p.riverWidth * 1.25, p.y + 24 * dpr);
+      ctx.lineTo(cx + p.riverWidth * 2.1 + p.wallSpan * 0.5, p.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawEdgeLines(t) {
+    ctx.save();
+    ctx.lineCap = "round";
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      for (let i = 0; i <= 58; i += 1) {
+        const z = i / 58;
+        const p = project(z);
+        const cx = riverCenter(z, t) * width;
+        const edgeNoise = Math.sin(z * 35 + side * 2 + t * 0.32) * p.riverWidth * 0.06;
+        const x = cx + side * (p.riverWidth + edgeNoise);
+        if (i === 0) ctx.moveTo(x, p.y);
+        else ctx.lineTo(x, p.y);
+      }
+      ctx.strokeStyle = `rgba(214, 237, 222, ${0.28 * heroState.reveal})`;
+      ctx.lineWidth = 1.1 * dpr;
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let i = 0; i <= 50; i += 1) {
+        const z = i / 50;
+        const p = project(z);
+        const cx = riverCenter(z, t) * width;
+        const x = cx + side * (p.riverWidth + p.wallSpan * 0.72);
+        if (i === 0) ctx.moveTo(x, p.y - 14 * dpr);
+        else ctx.lineTo(x, p.y - 14 * dpr);
+      }
+      ctx.strokeStyle = `rgba(18, 50, 112, ${0.24 * heroState.reveal})`;
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawDust(t) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const particle of dustParticles) {
+      const z = frac(particle.z + t * particle.speed);
+      const p = project(z);
+      const center = riverCenter(z, t);
+      const valleyGap = p.riverWidth / width + 0.06;
+      const xNorm = particle.x < center ? mix(0.03, center - valleyGap, particle.x / Math.max(center, 0.01)) : mix(center + valleyGap, 0.97, (particle.x - center) / Math.max(1 - center, 0.01));
+      const x = xNorm * width + Math.sin(t * 0.5 + particle.seed * 17) * 10 * dpr;
+      const y = p.y - p.wallSpan * 0.18 + (particle.seed - 0.5) * p.wallSpan * 0.34;
+      const fog = clamp01(1 - Math.abs(xNorm - center) * 1.8);
+      ctx.font = `${Math.round(mix(4.5 * dpr, 8 * dpr, p.v))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.fillStyle = `rgba(194, 222, 220, ${heroState.reveal * mix(0.04, 0.14, fog)})`;
+      ctx.fillText(glyphFrom(dustGlyphs, fog, particle.seed, t), x, y);
+    }
+    ctx.restore();
+  }
+
+  function drawCanyon(t) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const particle of canyonParticles) {
+      const z = frac(particle.z + t * particle.speed);
+      const p = project(z);
+      const center = riverCenter(z, t);
+      const shelf = Math.pow(particle.shelf, 1.8);
+      const wall = p.riverWidth * mix(1.15, 1.52, shelf) + p.wallSpan * particle.wall;
+      const stratum = Math.sin(z * 60 + particle.wall * 12 + particle.side * 0.8) * p.wallSpan * 0.02;
+      const x = center * width + particle.side * (wall + stratum);
+      const y = p.y - p.wallSpan * mix(0.02, 0.34, particle.wall) + Math.sin(particle.seed * 20 + t * 0.25) * 4 * dpr;
+      if (x < -20 || x > width + 20 || y < 0 || y > height + 20) continue;
+      const depth = smooth(p.v);
+      const brightness = clamp01((1 - particle.wall * 0.58) * 0.72 + shelf * 0.22);
+      const alpha = heroState.reveal * mix(0.08, 0.52, depth) * brightness;
+      const r = Math.round(mix(122, 230, brightness));
+      const g = Math.round(mix(168, 224, brightness));
+      const b = Math.round(mix(180, 219, brightness));
+      ctx.font = `${Math.round(p.font)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      ctx.fillText(glyphFrom(canyonGlyphs, brightness, particle.seed, t), x, y);
+    }
+    ctx.restore();
+  }
+
+  function drawRiver(t) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const particle of riverParticles) {
+      const z = frac(particle.z + t * particle.speed);
+      const p = project(z);
+      const center = riverCenter(z, t);
+      const lane = particle.lane * p.riverWidth * mix(0.34, 0.98, p.v);
+      const braid = Math.sin(z * 54 + particle.seed * 16 - t * 6.4) * p.riverWidth * 0.1;
+      const x = center * width + lane + braid + particle.wobble * p.riverWidth * 0.08;
+      const y = p.y + Math.sin(t * 7 + particle.seed * 20) * p.font * 0.25;
+      if (x < -20 || x > width + 20 || y < 0 || y > height + 20) continue;
+      const laneCenter = 1 - clamp01(Math.abs(particle.lane));
+      const streak = Math.sin(z * 90 - t * 10 + particle.seed * 9) * 0.5 + 0.5;
+      const amount = clamp01(laneCenter * 0.58 + streak * 0.42);
+      const alpha = heroState.reveal * mix(0.2, 0.86, amount) * mix(0.44, 1, p.v);
+      ctx.font = `${Math.round(p.font * mix(0.86, 1.2, amount))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.fillStyle = `rgba(${Math.round(mix(174, 236, amount))}, ${Math.round(mix(218, 248, amount))}, ${Math.round(mix(224, 255, amount))}, ${alpha})`;
+      ctx.fillText(glyphFrom(riverGlyphs, amount, particle.seed, t), x, y);
+    }
+    ctx.restore();
   }
 
   function draw(now) {
@@ -111,46 +341,11 @@ function initHeroCanvas() {
     const revealStart = 3.0;
     heroState.reveal = prefersReduced ? 1 : smooth((now - heroState.startedAt - revealStart * 1000) / 1800);
 
-    const sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, "#103b88");
-    sky.addColorStop(0.48, "#5d99aa");
-    sky.addColorStop(1, "#123c82");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, width, height);
-
-    const cell = Math.max(9, Math.round(13 * dpr));
-    ctx.font = `${Math.round(cell * 1.08)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    for (let y = 0; y < height; y += cell) {
-      const ny = y / height;
-      const horizon = 0.42;
-      const valley = Math.max(0, ny - horizon);
-      for (let x = 0; x < width; x += cell) {
-        const nx = x / width;
-        const center = 0.5 + Math.sin(t * 0.28 + ny * 7) * 0.07;
-        const riverWidth = 0.06 + valley * 0.32;
-        const river = 1 - clamp01(Math.abs(nx - center) / riverWidth);
-        const canyon = Math.abs(nx - center) - riverWidth;
-        const ridge = Math.max(0, 1 - Math.abs(canyon) * 4.6) * valley;
-        const flow = Math.sin((nx * 11 + ny * 46 - t * 4.2)) * 0.5 + 0.5;
-        const mist = Math.sin((nx + ny) * 18 + t * 0.8) * 0.5 + 0.5;
-        const intensity = clamp01((river * 0.74 + ridge * 0.58 + mist * 0.18) * heroState.reveal);
-        if (intensity < 0.04 && ny < horizon + 0.04) continue;
-        const gi = Math.floor(intensity * (glyphs.length - 1));
-        const alpha = clamp01(intensity * 0.86 + river * 0.16);
-        const hueMix = river * 0.8 + flow * 0.2;
-        ctx.fillStyle = `rgba(${Math.round(156 - hueMix * 36)}, ${Math.round(208 + hueMix * 30)}, ${Math.round(218 + hueMix * 22)}, ${alpha})`;
-        ctx.fillText(glyphs[gi], x + cell / 2, y + cell / 2);
-      }
-    }
-
-    const glow = ctx.createRadialGradient(width * 0.53, height * 0.42, 0, width * 0.53, height * 0.42, width * 0.4);
-    glow.addColorStop(0, `rgba(206, 233, 223, ${0.22 * heroState.reveal})`);
-    glow.addColorStop(1, "rgba(206, 233, 223, 0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
+    fillBackdrop(t);
+    drawDust(t);
+    drawCanyon(t);
+    drawEdgeLines(t);
+    drawRiver(t);
 
     typeText(now);
     if (now - heroState.startedAt > 1550) showChrome();

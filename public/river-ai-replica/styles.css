@@ -161,9 +161,9 @@ body.live .mark span:nth-child(4) {
 
 .hero-placeholder {
   background:
-    radial-gradient(circle at 60% 36%, rgba(159, 216, 219, 0.5), transparent 18%),
-    radial-gradient(circle at 48% 64%, rgba(108, 168, 197, 0.44), transparent 24%),
-    linear-gradient(180deg, #123f8c 0%, #477e99 58%, #123c82 100%);
+    radial-gradient(circle at 54% 44%, rgba(180, 224, 214, 0.42), transparent 22%),
+    radial-gradient(circle at 50% 68%, rgba(91, 159, 190, 0.35), transparent 26%),
+    linear-gradient(180deg, #123f8c 0%, #2b719b 48%, #78abb0 64%, #123c82 100%);
   animation: drift 16s ease-in-out infinite alternate;
 }
 
@@ -180,15 +180,15 @@ body.live .mark span:nth-child(4) {
   z-index: 1;
   width: 100%;
   height: 100%;
-  opacity: 0.94;
+  opacity: 1;
 }
 
 .hero-vignette {
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(13, 46, 105, 0.88), transparent 30%, rgba(13, 46, 105, 0.5) 100%),
-    radial-gradient(circle at 50% 52%, transparent 30%, rgba(13, 38, 88, 0.4) 74%);
+    linear-gradient(180deg, rgba(13, 46, 105, 0.76), transparent 24%, rgba(13, 46, 105, 0.34) 100%),
+    radial-gradient(circle at 50% 54%, transparent 34%, rgba(13, 38, 88, 0.34) 78%);
 }
 
 .hero-text {
@@ -196,8 +196,8 @@ body.live .mark span:nth-child(4) {
   left: 50%;
   top: 57%;
   z-index: 5;
-  width: min(980px, calc(100% - 48px));
-  color: rgba(255, 255, 255, 0.92);
+  width: min(760px, calc(100% - 48px));
+  color: rgba(214, 237, 222, 0.96);
   text-align: center;
   transform:
     translate(-50%, -50%)
@@ -207,17 +207,18 @@ body.live .mark span:nth-child(4) {
 }
 
 .hero-text-headline {
-  font-size: clamp(2.9rem, 7vw, 7rem);
-  font-weight: 720;
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  font-weight: 520;
+  line-height: 1.18;
+  letter-spacing: 0;
 }
 
 .hero-text-sub {
   min-height: 1.5em;
-  margin-top: 22px;
-  font-size: clamp(1rem, 1.5vw, 1.32rem);
-  color: rgba(255, 255, 255, 0.78);
+  margin-top: 8px;
+  font-size: clamp(0.86rem, 1.28vw, 1.05rem);
+  line-height: 1.5;
+  color: rgba(241, 237, 228, 0.72);
 }
 
 .typing::after,

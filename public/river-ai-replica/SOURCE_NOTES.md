@@ -26,6 +26,8 @@ This pattern is more important than the exact shader. It can be rethemed by swap
 ## Visible Behaviors To Preserve
 
 - The first viewport feels like an environment, not a layout block.
+- The river reads as a depth field: a narrow far channel widens toward the viewer.
+- Terrain particles and river particles move at different speeds.
 - Text enters before the full scene becomes visually dense.
 - Navigation appears after the page has established its mood.
 - The scroll cue is small and late.
