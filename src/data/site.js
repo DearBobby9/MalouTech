@@ -6,7 +6,7 @@ export const papers = [
       "MACE-Dance: Motion-Appearance Cascaded Experts for Music-Driven Dance Video Generation",
     venue: "SIGGRAPH 2026",
     type: "Motion + Appearance",
-    image: assetPath("assets/papers/display/mace-dance.png"),
+    image: assetPath("assets/papers/display/mace-dance.webp"),
     authors:
       "Kaixing Yang, Jiashu Zhu, Xulong Tang, Ziqiao Peng, Xiangyue Zhang, Puwei Wang, Jiahong Wu, Xiangxiang Chu, Hongyan Liu, Jun He",
     contribution:
@@ -30,7 +30,7 @@ export const papers = [
     title: "Personalized Dance Synthesis Based on Physical and Cognitive Intensities",
     venue: "IEEE VR 2026",
     type: "XR Motion",
-    image: assetPath("assets/papers/display/personalized-dance.png"),
+    image: assetPath("assets/papers/display/personalized-dance.webp"),
     authors: "Xulong Tang, Eun Yeo, Ruiyu Mao, Xiaohu Guo, Rawan Alghofaili",
     contribution:
       "Connects personalized dance synthesis with physical and cognitive intensity for XR-facing motion systems.",
@@ -49,7 +49,7 @@ export const papers = [
     title: "TokenDance: Token-to-Token Music-to-Dance Generation with Bidirectional Mamba",
     venue: "CVPR Workshop 2026",
     type: "Token Motion",
-    image: assetPath("assets/papers/display/token-dance.png"),
+    image: assetPath("assets/papers/display/token-dance.webp"),
     authors: "Ziyue Yang, Kaixing Yang, Xulong Tang",
     contribution:
       "Frames music-to-dance generation as token-to-token sequence modeling with bidirectional temporal structure.",
@@ -68,7 +68,7 @@ export const papers = [
     title: "MEGADance: Mixture-of-Experts Architecture for Genre-Aware 3D Dance Generation",
     venue: "NeurIPS 2025",
     type: "Mixture of Experts",
-    image: assetPath("assets/papers/display/megadance.png"),
+    image: assetPath("assets/papers/display/megadance.webp"),
     authors: "Kaixing Yang*, Xulong Tang*, Ziqiao Peng, Yuxuan Hu, Jun He, Hongyan Liu",
     contribution:
       "Uses mixture-of-experts modeling to generate genre-aware 3D dance motion.",
@@ -90,7 +90,7 @@ export const papers = [
     title: "CoheDancers: Interactive Group Dance Generation via Music-Driven Coherence Decomposition",
     venue: "ACM MM 2025",
     type: "Group Coherence",
-    image: assetPath("assets/papers/display/cohedancers.png"),
+    image: assetPath("assets/papers/display/cohedancers.webp"),
     authors: "Kaixing Yang*, Xulong Tang*, Haoyu Wu, Qinliang Xue, Biao Qin, Hongyan Liu, Zhaoxin Fan",
     contribution:
       "Decomposes group coherence so interactive dance generation can preserve ensemble structure.",
@@ -112,7 +112,7 @@ export const papers = [
     title: "CoDancers: Music-Driven Coherent Group Dance Generation with Choreographic Unit",
     venue: "ICMR 2024",
     type: "Group Dance",
-    image: assetPath("assets/papers/display/codancers.png"),
+    image: assetPath("assets/papers/display/codancers.webp"),
     authors: "Kaixing Yang*, Xulong Tang*, Ran Diao, Hongyan Liu, Jun He, Zhaoxin Fan",
     contribution:
       "Models choreographic units to improve coherence in music-driven group dance generation.",
@@ -134,7 +134,7 @@ export const papers = [
     title: "BeatDance: A Beat-Based Model-Agnostic Contrastive Learning Framework for Music-Dance Retrieval",
     venue: "ICMR 2024",
     type: "Retrieval",
-    image: assetPath("assets/papers/display/beatdance.png"),
+    image: assetPath("assets/papers/display/beatdance.webp"),
     authors: "Kaixing Yang, Xukun Zhou, Xulong Tang, Ran Diao, Hongyan Liu, Jun He, Zhaoxin Fan",
     contribution:
       "Uses beat-aligned contrastive learning to improve music-dance retrieval across model families.",

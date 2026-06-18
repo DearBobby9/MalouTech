@@ -159,6 +159,7 @@ function ResearchStage() {
       gsap.set(".route-path", { drawSVG: "0% 0%" });
       gsap.set(".connector-path", { drawSVG: "0% 0%" });
       gsap.set(".motion-trail", { drawSVG: "0% 0%" });
+      gsap.set(".stage-depth-scrim", { autoAlpha: 0 });
       gsap.set(".signal-runner", { autoAlpha: 0, scale: 0.7, transformOrigin: "50% 50%" });
       gsap.set(".route-particle", { autoAlpha: 0, scale: 0.42, transformOrigin: "50% 50%" });
       gsap.set(".route-node", { autoAlpha: 0, scale: 0.48, transformOrigin: "50% 50%" });
@@ -217,12 +218,14 @@ function ResearchStage() {
         .set(".hero-kicker, .hero-copy, .hero-actions", { autoAlpha: 1, y: 0 }, 0)
         .to(".stage-camera", { scale: 1.04, xPercent: -4, yPercent: -1 }, 0)
         .to(".stage-grid", { autoAlpha: 0.42 }, 0.04)
+        .to(".stage-depth-scrim", { autoAlpha: 0 }, 0)
         .to(".stage-copy-identity", { autoAlpha: 1, y: 0 }, 0)
         .to(".stage-copy-signal", { autoAlpha: 0, y: 26 }, 0)
         .addLabel("signal", 0.25)
-        .to(".hero-title-mask", { yPercent: -42, autoAlpha: 0.1 }, 0.18)
+        .to(".hero-title-mask", { yPercent: -42, autoAlpha: 0.08 }, 0.18)
         .to(".hero-kicker, .hero-copy, .hero-actions", { autoAlpha: 0, y: -22 }, 0.2)
         .to(".hero-evidence", { autoAlpha: 0, y: -16 }, 0.2)
+        .to(".stage-depth-scrim", { autoAlpha: 0.32 }, 0.22)
         .to(".stage-copy-identity", { autoAlpha: 0, y: -30 }, 0.22)
         .to(".stage-copy-signal", { autoAlpha: 1, y: 0 }, 0.25)
         .fromTo(".waveform-path", { drawSVG: "0% 0%" }, { drawSVG: "0% 100%", duration: 0.22 }, 0.26)
@@ -261,7 +264,9 @@ function ResearchStage() {
         .to(".stage-copy-signal", { autoAlpha: 0, y: -28 }, 0.49)
         .to(".stage-copy-model", { autoAlpha: 1, y: 0 }, 0.5)
         .to(".hero-copy", { autoAlpha: 0, y: -28, duration: 0.08 }, 0.52)
-        .to(".hero-title-mask", { autoAlpha: 0.04, duration: 0.1 }, 0.58)
+        .to(".hero-title-mask", { autoAlpha: 0.015, duration: 0.08 }, 0.5)
+        .to(".stage-depth-scrim", { autoAlpha: 0.62 }, 0.5)
+        .to(".route-layer", { autoAlpha: 0.62 }, 0.5)
         .to(".waveform-layer", { autoAlpha: 0.3, scale: 0.94 }, 0.5)
         .to(".token-lane-motion", { y: -96, x: 96, stagger: 0.006 }, 0.51)
         .to(".token-lane-appearance", { y: 106, x: 140, stagger: 0.006 }, 0.51)
@@ -294,13 +299,15 @@ function ResearchStage() {
         )
         .to(".route-node-model", { autoAlpha: 1, scale: 1, duration: 0.12, stagger: 0.035 }, 0.58)
         .to(".connector-path", { drawSVG: "0% 100%", stagger: 0.06 }, 0.54)
-        .to(".expert-card", { autoAlpha: 1, y: 0, scale: 1, duration: 0.16, stagger: 0.08 }, 0.57)
-        .to(".expert-pulse", { scale: 1.08, autoAlpha: 0.65, stagger: 0.05 }, 0.66)
-        .to(".stage-camera", { xPercent: -15, yPercent: 2, scale: 1.16 }, 0.5)
+        .to(".expert-card", { autoAlpha: 0.58, y: 0, scale: 1, duration: 0.16, stagger: 0.08 }, 0.57)
+        .to(".expert-pulse", { scale: 1.08, autoAlpha: 0.42, stagger: 0.05 }, 0.66)
+        .to(".stage-camera", { xPercent: -11, yPercent: 1, scale: 1.1 }, 0.5)
         .addLabel("spatial", 0.75)
         .to(".stage-copy-model", { autoAlpha: 0, y: -28 }, 0.74)
         .to(".stage-copy-spatial", { autoAlpha: 1, y: 0 }, 0.75)
         .to(".hero-panel", { autoAlpha: 0, y: -34, duration: 0.12 }, 0.74)
+        .to(".stage-depth-scrim", { autoAlpha: 0.74 }, 0.74)
+        .to(".route-layer", { autoAlpha: 0.34 }, 0.74)
         .to(".waveform-layer", { autoAlpha: 0.12, scale: 0.86 }, 0.74)
         .to(".token-grid", { autoAlpha: 0.42, scale: 0.94 }, 0.76)
         .to(".expert-card", { xPercent: -22, autoAlpha: 0.24, scale: 0.9 }, 0.76)
@@ -319,10 +326,10 @@ function ResearchStage() {
           0.77,
         )
         .to(".route-node-spatial", { autoAlpha: 1, scale: 1, duration: 0.14, stagger: 0.03 }, 0.8)
-        .to(".motion-trail", { drawSVG: "0% 100%", duration: 0.18, stagger: 0.04 }, 0.77)
-        .to(".skeleton-node", { autoAlpha: 1, scale: 1, duration: 0.18, stagger: { amount: 0.24, from: "center" } }, 0.78)
-        .to(".xr-plane", { autoAlpha: 1, xPercent: 0, rotationY: 0, duration: 0.18, stagger: 0.09 }, 0.82)
-        .to(".stage-camera", { xPercent: -18, yPercent: 0, scale: 1.2 }, 0.75)
+        .to(".motion-trail", { drawSVG: "0% 100%", autoAlpha: 0.52, duration: 0.18, stagger: 0.04 }, 0.77)
+        .to(".skeleton-node", { autoAlpha: 0.62, scale: 1, duration: 0.18, stagger: { amount: 0.24, from: "center" } }, 0.78)
+        .to(".xr-plane", { autoAlpha: 0.34, xPercent: 0, rotationY: 0, duration: 0.18, stagger: 0.09 }, 0.82)
+        .to(".stage-camera", { xPercent: -10, yPercent: 0, scale: 1.08 }, 0.75)
         .to(".spatial-caption", { autoAlpha: 1, y: 0 }, 0.88);
 
       const orbTween = gsap.to(".stage-orb", {
@@ -409,6 +416,8 @@ function ResearchStage() {
           <MotionSkeleton />
           <XRPlanes />
         </div>
+
+        <div className="stage-depth-scrim" aria-hidden="true" />
 
         <div className="hero-panel">
           <p className="hero-kicker">MalouTech Research Lab</p>

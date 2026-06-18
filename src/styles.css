@@ -101,7 +101,7 @@ a {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 8;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,6 +183,19 @@ a {
   mask-image: radial-gradient(circle at 50% 50%, black, transparent 72%);
 }
 
+.stage-depth-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 72% 58%, rgba(9, 11, 12, 0.52), transparent 28rem),
+    radial-gradient(circle at 32% 48%, rgba(9, 11, 12, 0.34), transparent 22rem),
+    linear-gradient(90deg, rgba(9, 11, 12, 0.86), rgba(9, 11, 12, 0.58) 48%, rgba(9, 11, 12, 0.38));
+  opacity: 0;
+  will-change: opacity;
+}
+
 .stage-orb {
   position: absolute;
   border-radius: 999px;
@@ -261,7 +274,7 @@ a {
   width: min(78vw, 1060px);
   overflow: visible;
   pointer-events: none;
-  opacity: 0.88;
+  opacity: 0.76;
   will-change: transform, opacity;
 }
 
@@ -326,8 +339,8 @@ a {
   width: 220px;
   min-height: 116px;
   padding: 20px;
-  border: 1px solid rgba(237, 230, 216, 0.14);
-  background: rgba(17, 22, 23, 0.88);
+  border: 1px solid rgba(237, 230, 216, 0.11);
+  background: rgba(17, 22, 23, 0.72);
   backdrop-filter: blur(16px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   will-change: transform, opacity;
@@ -379,7 +392,7 @@ a {
   top: 22%;
   width: min(26vw, 360px);
   overflow: visible;
-  filter: drop-shadow(0 24px 70px rgba(102, 198, 200, 0.12));
+  filter: drop-shadow(0 24px 70px rgba(102, 198, 200, 0.08));
   will-change: transform, opacity;
 }
 
@@ -395,14 +408,14 @@ a {
 
 .xr-plane {
   position: absolute;
-  border: 1px solid rgba(102, 198, 200, 0.26);
+  border: 1px solid rgba(102, 198, 200, 0.16);
   background:
-    linear-gradient(135deg, rgba(102, 198, 200, 0.16), rgba(237, 230, 216, 0.04)),
-    rgba(9, 11, 12, 0.42);
-  backdrop-filter: blur(8px);
+    linear-gradient(135deg, rgba(102, 198, 200, 0.1), rgba(237, 230, 216, 0.025)),
+    rgba(9, 11, 12, 0.28);
+  backdrop-filter: blur(5px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 32px 80px rgba(0, 0, 0, 0.24);
+    0 24px 60px rgba(0, 0, 0, 0.18);
   transform-style: preserve-3d;
   will-change: transform, opacity;
 }
@@ -443,7 +456,7 @@ a {
 
 .hero-panel {
   position: relative;
-  z-index: 4;
+  z-index: 6;
   display: flex;
   min-height: 100dvh;
   width: min(920px, calc(100% - 40px));
@@ -592,8 +605,8 @@ a {
   position: absolute;
   right: clamp(20px, 4vw, 68px);
   bottom: clamp(28px, 6vw, 82px);
-  z-index: 6;
-  width: min(380px, calc(100% - 40px));
+  z-index: 9;
+  width: min(430px, calc(100% - 40px));
   min-height: 244px;
   pointer-events: none;
 }
@@ -601,12 +614,19 @@ a {
 .stage-copy {
   position: absolute;
   inset: 0;
-  padding: 22px;
-  border-left: 1px solid rgba(237, 230, 216, 0.18);
-  background: linear-gradient(90deg, rgba(9, 11, 12, 0.84), rgba(9, 11, 12, 0.08));
-  backdrop-filter: blur(8px);
+  padding: 24px 26px;
+  border: 1px solid rgba(237, 230, 216, 0.16);
+  border-left-color: rgba(102, 198, 200, 0.48);
+  background:
+    linear-gradient(135deg, rgba(9, 11, 12, 0.98), rgba(14, 20, 20, 0.94)),
+    rgba(9, 11, 12, 0.94);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   opacity: 0;
   transform: translateY(26px);
+  isolation: isolate;
 }
 
 .stage-copy-identity {
@@ -621,8 +641,8 @@ a {
 }
 
 .stage-copy h2 {
-  margin: 18px 0 14px;
-  font-size: clamp(1.4rem, 2vw, 2rem);
+  margin: 18px 0 16px;
+  font-size: clamp(1.55rem, 2.3vw, 2.35rem);
   line-height: 1.05;
   font-weight: 520;
 }
@@ -656,7 +676,7 @@ a {
   position: absolute;
   left: clamp(20px, 5vw, 74px);
   bottom: clamp(18px, 3vw, 44px);
-  z-index: 7;
+  z-index: 9;
   display: grid;
   gap: 8px;
   width: min(390px, calc(100% - 40px));
@@ -686,7 +706,7 @@ a {
   position: absolute;
   left: clamp(20px, 2.4vw, 36px);
   top: 50%;
-  z-index: 7;
+  z-index: 9;
   display: grid;
   gap: 10px;
   transform: translateY(-50%);
