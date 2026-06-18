@@ -64,7 +64,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px clamp(24px, 4vw, 56px);
+  padding: 23px clamp(24px, 4vw, 56px);
   color: #ffffff;
   opacity: 0;
   pointer-events: none;
@@ -90,28 +90,53 @@ button {
 .footer-wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1.42rem;
+  gap: 9px;
+  font-size: 1.55rem;
   font-weight: 720;
+  line-height: 1;
   letter-spacing: -0.04em;
 }
 
 .mark {
   position: relative;
-  display: grid;
-  width: 34px;
-  height: 20px;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-  transform: skewX(-14deg);
+  display: block;
+  width: 40px;
+  height: 24px;
+  transform: skewX(-19deg);
 }
 
 .mark span {
+  position: absolute;
   display: block;
+  height: 6px;
   border-radius: 999px;
   background: currentColor;
   transform: scaleX(0);
   transform-origin: left center;
+}
+
+.mark span:nth-child(1) {
+  top: 1px;
+  left: 0;
+  width: 18px;
+}
+
+.mark span:nth-child(2) {
+  top: 1px;
+  left: 23px;
+  width: 17px;
+}
+
+.mark span:nth-child(3) {
+  top: 14px;
+  left: 0;
+  width: 16px;
+}
+
+.mark span:nth-child(4) {
+  top: 14px;
+  left: 18px;
+  width: 22px;
 }
 
 body.live .mark span {
