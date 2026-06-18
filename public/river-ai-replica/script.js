@@ -483,13 +483,13 @@ function initHeroWebGL() {
     }
 
     float leftWallEdge(float y) {
-      float rise = pow(smoothstep(0.0, 0.66, y), 1.28);
-      return 0.075 + rise * 0.36 + sin(y * 7.4 - 0.5) * 0.018;
+      float rise = pow(smoothstep(0.0, 0.62, y), 1.18);
+      return 0.082 + rise * 0.52 + sin(y * 7.4 - 0.5) * 0.014;
     }
 
     float rightWallEdge(float y) {
-      float fall = pow(smoothstep(0.0, 0.58, y), 0.88);
-      return 1.045 - fall * 0.52 + sin(y * 6.0 + 0.7) * 0.02;
+      float fall = pow(smoothstep(0.0, 0.58, y), 0.86);
+      return 0.982 - fall * 0.35 + sin(y * 6.0 + 0.7) * 0.016;
     }
 
     float wallUpper(float y) {
@@ -541,22 +541,30 @@ function initHeroWebGL() {
       float rightWall = smoothstep(rightEdge - 0.05, rightEdge + 0.035, uv.x) * (1.0 - smoothstep(0.76, 1.0, uv.y));
       float betweenWalls = smoothstep(leftEdge - 0.02, leftEdge + 0.16, uv.x)
         * (1.0 - smoothstep(rightEdge - 0.15, rightEdge + 0.035, uv.x))
-        * (1.0 - smoothstep(0.62, 0.92, uv.y));
+        * (1.0 - smoothstep(0.52, 0.70, uv.y));
       float throat = exp(-abs(uv.x - mix(leftEdge, rightEdge, 0.53)) / 0.22)
         * smoothstep(0.34, 0.62, uv.y)
-        * (1.0 - smoothstep(0.74, 0.96, uv.y));
-      float leftRim = exp(-abs(uv.x - leftEdge) / 0.024) * upper * smoothstep(0.10, 0.62, uv.y);
+        * (1.0 - smoothstep(0.56, 0.72, uv.y));
+      float leftRim = exp(-abs(uv.x - leftEdge) / 0.024) * upper * smoothstep(0.015, 0.42, uv.y);
       float rightRim = exp(-abs(uv.x - rightEdge) / 0.026)
         * upper
         * smoothstep(0.08, 0.64, uv.y)
         * (1.0 - smoothstep(0.50, 0.68, uv.y));
       float wallTexture = fbm(uv * vec2(6.2, 4.4) + vec2(0.0, u_time * 0.025));
-      color = mix(color, vec3(0.19, 0.21, 0.33), betweenWalls * 0.58);
-      color = mix(color, vec3(0.06, 0.17, 0.34), leftWall * (0.86 + wallTexture * 0.08));
-      color = mix(color, vec3(0.13, 0.32, 0.53), rightWall * (0.72 + wallTexture * 0.12));
-      color = mix(color, vec3(0.30, 0.30, 0.40), throat * 0.24);
-      color += vec3(0.21, 0.36, 0.42) * leftRim * 0.16;
-      color += vec3(0.52, 0.70, 0.70) * rightRim * 0.15;
+      color = mix(color, vec3(0.23, 0.23, 0.35), betweenWalls * 0.64);
+      color = mix(color, vec3(0.045, 0.15, 0.32), leftWall * (0.90 + wallTexture * 0.08));
+      color = mix(color, vec3(0.08, 0.24, 0.45), rightWall * (0.82 + wallTexture * 0.09));
+      color = mix(color, vec3(0.33, 0.31, 0.40), throat * 0.28);
+      color += vec3(0.30, 0.46, 0.50) * leftRim * 0.20;
+      color += vec3(0.58, 0.76, 0.74) * rightRim * 0.17;
+
+      vec2 sunP = vec2((uv.x - 0.468) * (u_resolution.x / u_resolution.y), uv.y - 0.428);
+      float sunCore = smoothstep(0.043, 0.026, length(sunP));
+      float sunGlow = exp(-dot(sunP, sunP) * 52.0) * betweenWalls;
+      float sunHalo = exp(-dot(sunP, sunP) * 14.0) * betweenWalls;
+      color = mix(color, vec3(1.0, 0.96, 0.78), sunCore * 0.92);
+      color += vec3(0.92, 0.58, 0.34) * sunGlow * 0.42;
+      color += vec3(0.42, 0.28, 0.25) * sunHalo * 0.18;
 
       float horizon = horizonAt(uv.x);
       float depthRaw = (uv.y - horizon) / (1.0 - horizon);
@@ -620,6 +628,14 @@ function initHeroWebGL() {
       float dust = skyDust * (1.0 - smoothstep(0.16, 0.42, dx)) * 0.24;
       dust *= mix(0.10, 1.0, bedGate);
 
+      vec2 cSunP = vec2((cellCenter.x - 0.468) * (u_resolution.x / u_resolution.y), cellCenter.y - 0.428);
+      float sunGlyphField = exp(-dot(cSunP, cSunP) * 42.0) * (0.40 + fbm(cellCenter * vec2(32.0, 22.0)) * 0.60);
+      float topCloud = smoothstep(0.52, 0.66, cellCenter.x)
+        * (1.0 - smoothstep(0.95, 1.0, cellCenter.x))
+        * (1.0 - smoothstep(0.11, 0.20, cellCenter.y))
+        * fbm(vec2(cellCenter.x * 25.0, cellCenter.y * 38.0 + u_time * 0.03));
+      float upperMist = (sunGlyphField * 0.52 + topCloud * 0.34) * (1.0 - bedGate);
+
       float cLeftEdge = leftWallEdge(cellCenter.y);
       float cRightEdge = rightWallEdge(cellCenter.y);
       float cUpper = wallUpper(cellCenter.y);
@@ -627,17 +643,19 @@ function initHeroWebGL() {
       float cRightWall = smoothstep(cRightEdge - 0.05, cRightEdge + 0.04, cellCenter.x) * (1.0 - smoothstep(0.76, 1.0, cellCenter.y));
       float cBetweenWalls = smoothstep(cLeftEdge - 0.02, cLeftEdge + 0.16, cellCenter.x)
         * (1.0 - smoothstep(cRightEdge - 0.15, cRightEdge + 0.035, cellCenter.x))
-        * (1.0 - smoothstep(0.62, 0.92, cellCenter.y));
+        * (1.0 - smoothstep(0.52, 0.70, cellCenter.y));
       float topStructureMask = saturate(cLeftWall * 0.85 + cRightWall * 0.68 + cBetweenWalls * 0.36);
 
       float groundGate = smoothstep(cHorizon - 0.02, cHorizon + 0.06, cellCenter.y) * smoothstep(0.035, 0.22, cDepth);
       float amount = max(max(river * 1.1, canyon * 0.82), dust);
+      amount = max(amount, upperMist);
       amount += (rimLeft * 0.44 + ridge * 0.18) * groundGate * mix(0.02, 1.0, bedGate);
       amount *= smoothstep(cHorizon - 0.035, cHorizon + 0.055, cellCenter.y);
       amount *= 1.0 - topStructureMask * (1.0 - bedGate) * 0.82;
-      amount += cBetweenWalls * (1.0 - bedGate) * 0.014;
-      float mound = exp(-abs(cellCenter.x - 0.52) / mix(0.18, 0.54, bedGate));
-      amount *= mix(0.46 + mound * 0.54, 1.0, smoothstep(0.22, 0.78, river));
+      amount += cBetweenWalls * (1.0 - bedGate) * 0.012;
+      amount += (sunGlyphField * 0.24 + topCloud * 0.72) * (1.0 - bedGate);
+      float mound = exp(-abs(cellCenter.x - 0.52) / mix(0.22, 0.70, bedGate));
+      amount *= mix(0.22 + mound * 0.78, 1.0, smoothstep(0.34, 0.82, river));
       float particleGate = smoothstep(0.18, 0.86, amount + hash(cell + floor(u_time * vec2(2.0, 5.0))) * 0.42);
       amount *= particleGate;
       amount *= u_reveal;
@@ -660,11 +678,12 @@ function initHeroWebGL() {
       float ink = saturate((softGlyph * 1.34 + dot) * amount);
       float glowInk = bloomGlyph * amount * 0.23;
 
-      vec3 riverColor = mix(vec3(0.58, 0.80, 0.84), vec3(0.91, 0.99, 0.96), saturate(river));
+      vec3 riverColor = mix(vec3(0.58, 0.80, 0.84), vec3(0.91, 0.99, 0.96), saturate(river * 0.74));
       vec3 canyonColor = mix(vec3(0.31, 0.49, 0.58), vec3(0.74, 0.86, 0.79), saturate(canyon + ridge));
       vec3 dustColor = vec3(0.74, 0.86, 0.84);
       vec3 inkColor = mix(canyonColor, riverColor, smoothstep(0.16, 0.48, river));
       inkColor = mix(inkColor, dustColor, smoothstep(0.02, 0.16, dust) * (1.0 - river));
+      inkColor = mix(inkColor, vec3(0.98, 0.88, 0.68), smoothstep(0.06, 0.42, upperMist) * (1.0 - bedGate));
 
       color -= vec3(0.03, 0.08, 0.13) * wallBand * smoothstep(0.18, 0.9, cDepth) * (0.18 + wallPos * 0.32 + selfShadow * 0.52);
       color = mix(color, inkColor, ink);
