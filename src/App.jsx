@@ -783,9 +783,11 @@ function PublicationProof() {
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
+      const mm = gsap.matchMedia();
 
       gsap.set(".publication-trace-path", { drawSVG: "0% 0%" });
       gsap.set(".publication-pulse", { autoAlpha: 0, scale: 0.5, transformOrigin: "50% 50%" });
+      gsap.set(".spotlight-progress-fill", { scaleX: 1 / papers.length, transformOrigin: "left center" });
 
       gsap.from(".proof-heading > *", {
         scrollTrigger: {
@@ -837,6 +839,68 @@ function PublicationProof() {
             },
             duration: 0.52,
           }, 0.26);
+
+        mm.add("(min-width: 900px)", () => {
+          const spotlight = proofRef.current.querySelector(".paper-spotlight");
+          const frames = gsap.utils.toArray(".spotlight-frame", spotlight);
+          const panels = gsap.utils.toArray(".spotlight-copy-panel", spotlight);
+          const progressFill = spotlight.querySelector(".spotlight-progress-fill");
+
+          gsap.set(frames, {
+            autoAlpha: 0,
+            yPercent: 14,
+            scale: 0.82,
+            rotation: (index) => (index % 2 === 0 ? -5 : 5),
+            transformOrigin: "50% 60%",
+          });
+          gsap.set(frames[0], { autoAlpha: 1, yPercent: 0, scale: 1, rotation: 0 });
+          gsap.set(panels, { autoAlpha: 0, y: 22 });
+          gsap.set(panels[0], { autoAlpha: 1, y: 0 });
+          gsap.set(progressFill, { scaleX: 1 / frames.length, transformOrigin: "left center" });
+
+          const spotlightTimeline = gsap.timeline({
+            defaults: { ease: "none" },
+            scrollTrigger: {
+              trigger: spotlight,
+              start: "top top",
+              end: () => `+=${frames.length * 520}`,
+              scrub: 0.78,
+              pin: true,
+              anticipatePin: 1,
+              invalidateOnRefresh: true,
+            },
+          });
+
+          spotlightTimeline
+            .to(progressFill, { scaleX: 1, duration: frames.length - 1 }, 0)
+            .to(".spotlight-stage", { rotationX: 4, rotationY: -3, duration: frames.length - 1 }, 0);
+
+          frames.slice(1).forEach((frame, index) => {
+            const currentIndex = index + 1;
+            const previousFrame = frames[currentIndex - 1];
+            const previousPanel = panels[currentIndex - 1];
+            const currentPanel = panels[currentIndex];
+            const at = currentIndex;
+
+            spotlightTimeline
+              .to(previousFrame, {
+                autoAlpha: 0,
+                yPercent: -14,
+                scale: 0.78,
+                rotation: currentIndex % 2 === 0 ? -4 : 4,
+                duration: 0.64,
+              }, at - 0.48)
+              .to(frame, {
+                autoAlpha: 1,
+                yPercent: 0,
+                scale: 1,
+                rotation: 0,
+                duration: 0.72,
+              }, at - 0.4)
+              .to(previousPanel, { autoAlpha: 0, y: -20, duration: 0.42 }, at - 0.42)
+              .to(currentPanel, { autoAlpha: 1, y: 0, duration: 0.48 }, at - 0.28);
+          });
+        });
       }
 
       ScrollTrigger.batch(".paper-card", {
@@ -909,6 +973,7 @@ function PublicationProof() {
       window.addEventListener("scroll", hidePreview, { passive: true });
 
       return () => {
+        mm.revert();
         cleanups.forEach((cleanup) => cleanup());
         window.removeEventListener("scroll", hidePreview);
       };
@@ -937,6 +1002,38 @@ function PublicationProof() {
         <a className="proof-source" href="https://xulongt.github.io/#publications" target="_blank" rel="noreferrer">
           Source: Xulong Tang publication list
         </a>
+      </div>
+      <div className="paper-spotlight" aria-label="Scroll-linked publication spotlight">
+        <div className="spotlight-copy">
+          {papers.map((paper, index) => (
+            <article className="spotlight-copy-panel" key={`spotlight-copy-${paper.title}`}>
+              <p>{String(index + 1).padStart(2, "0")} / {String(papers.length).padStart(2, "0")}</p>
+              <h3>{paper.title}</h3>
+              <strong>{paper.venue} · {paper.type}</strong>
+              <span>{paper.contribution}</span>
+              <div className="spotlight-themes" aria-label={`Spotlight themes for ${paper.title}`}>
+                {paper.themes.map((theme) => (
+                  <em key={`${paper.title}-${theme}`}>{theme}</em>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="spotlight-stage" aria-hidden="true">
+          <img className="spotlight-mark" src="/assets/brand/malou-mark.svg" alt="" />
+          {papers.map((paper, index) => (
+            <figure className="spotlight-frame" key={`spotlight-frame-${paper.title}`}>
+              <img src={paper.image} alt="" loading={index === 0 ? "eager" : "lazy"} />
+              <figcaption>
+                <span>{paper.venue}</span>
+                <strong>{paper.type}</strong>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="spotlight-progress" aria-hidden="true">
+          <span className="spotlight-progress-fill" />
+        </div>
       </div>
       <div className="paper-list" aria-label="Featured publications">
         {papers.map((paper) => (
