@@ -1409,9 +1409,9 @@ a {
 
   .stage-narration {
     right: 20px;
-    bottom: 16px;
+    bottom: 8px;
     width: calc(100% - 40px);
-    min-height: 158px;
+    min-height: 144px;
   }
 
   .stage-meter {
