@@ -167,6 +167,17 @@ function ResearchStage() {
       gsap.set(".expert-card", { autoAlpha: 0, y: 40, scale: 0.92 });
       gsap.set(".xr-plane", { autoAlpha: 0, xPercent: 16, rotationY: -18 });
       gsap.set(".skeleton-node", { autoAlpha: 0, scale: 0.4 });
+      gsap.set(".orbit-path", { drawSVG: "0% 0%" });
+      gsap.set(".orbit-node", { autoAlpha: 0, scale: 0.48, transformOrigin: "50% 50%" });
+      gsap.set(".paper-orbit-card", {
+        autoAlpha: 0,
+        y: 38,
+        z: -120,
+        rotationY: -24,
+        scale: 0.72,
+        transformOrigin: "50% 50%",
+      });
+      gsap.set(".paper-orbit-card img", { scale: 1.14, transformOrigin: "50% 50%" });
 
       const intro = gsap.timeline({
         defaults: { ease: researchEase, duration: reduceMotion ? 0 : 1 },
@@ -188,11 +199,19 @@ function ResearchStage() {
           { autoAlpha: 1, y: 0, stagger: 0.08 },
           0.36,
         )
-        .from(".stage-orb", { autoAlpha: 0, scale: 0.75, stagger: 0.08 }, 0.1);
+        .from(".stage-orb", { autoAlpha: 0, scale: 0.75, stagger: 0.08 }, 0.1)
+        .to(".orbit-path", { drawSVG: "0% 78%", stagger: 0.08 }, 0.44)
+        .to(".orbit-node", { autoAlpha: 1, scale: 1, stagger: 0.04 }, 0.52)
+        .to(
+          ".paper-orbit-card",
+          { autoAlpha: 0.82, y: 0, z: 0, rotationY: 0, scale: 1, stagger: { amount: 0.42, from: "center" } },
+          0.48,
+        )
+        .to(".paper-orbit-card img", { scale: 1.04, stagger: { amount: 0.34, from: "center" } }, 0.52);
 
       if (reduceMotion) {
         gsap.set(
-          ".waveform-path, .route-path, .connector-path, .motion-trail, .signal-runner, .route-particle, .route-node, .spectral-bar, .token, .expert-card, .xr-plane, .skeleton-node",
+          ".waveform-path, .route-path, .connector-path, .motion-trail, .signal-runner, .route-particle, .route-node, .spectral-bar, .token, .expert-card, .xr-plane, .skeleton-node, .orbit-path, .orbit-node, .paper-orbit-card, .paper-orbit-card img",
           { clearProps: "all", autoAlpha: 1, scale: 1 },
         );
         return () => headline.revert();
@@ -217,6 +236,7 @@ function ResearchStage() {
         .set(".hero-kicker, .hero-copy, .hero-actions", { autoAlpha: 1, y: 0 }, 0)
         .to(".stage-camera", { scale: 1.04, xPercent: -4, yPercent: -1 }, 0)
         .to(".stage-grid", { autoAlpha: 0.42 }, 0.04)
+        .to(".research-orbit", { xPercent: -3, yPercent: -2 }, 0.04)
         .to(".stage-copy-identity", { autoAlpha: 1, y: 0 }, 0)
         .to(".stage-copy-signal", { autoAlpha: 0, y: 26 }, 0)
         .addLabel("signal", 0.25)
@@ -225,6 +245,15 @@ function ResearchStage() {
         .to(".hero-evidence", { autoAlpha: 0, y: -16 }, 0.2)
         .to(".stage-copy-identity", { autoAlpha: 0, y: -30 }, 0.22)
         .to(".stage-copy-signal", { autoAlpha: 1, y: 0 }, 0.25)
+        .to(".paper-orbit-card", {
+          xPercent: (index) => [-12, 8, 16, -18, 12, -8, 20][index] || 0,
+          yPercent: (index) => [-8, -14, 10, 16, -18, 12, 4][index] || 0,
+          rotation: (index) => [-4, 5, -2, 3, -5, 4, -3][index] || 0,
+          autoAlpha: 0.72,
+          scale: 0.96,
+          stagger: 0.012,
+        }, 0.26)
+        .to(".paper-orbit-card img", { scale: 1.1, stagger: 0.01 }, 0.26)
         .fromTo(".waveform-path", { drawSVG: "0% 0%" }, { drawSVG: "0% 100%", duration: 0.22 }, 0.26)
         .to(".signal-runner", { autoAlpha: 1, scale: 1, duration: 0.08 }, 0.28)
         .to(
@@ -296,6 +325,15 @@ function ResearchStage() {
         .to(".connector-path", { drawSVG: "0% 100%", stagger: 0.06 }, 0.54)
         .to(".expert-card", { autoAlpha: 1, y: 0, scale: 1, duration: 0.16, stagger: 0.08 }, 0.57)
         .to(".expert-pulse", { scale: 1.08, autoAlpha: 0.65, stagger: 0.05 }, 0.66)
+        .to(".paper-orbit-card", {
+          xPercent: (index) => [-34, -18, 18, 30, -24, 22, 8][index] || 0,
+          yPercent: (index) => [24, -28, -22, 26, 4, -8, 30][index] || 0,
+          rotationY: (index) => (index % 2 === 0 ? 16 : -18),
+          z: (index) => (index % 3 === 0 ? 90 : -40),
+          autoAlpha: 0.54,
+          scale: 0.84,
+          stagger: 0.01,
+        }, 0.52)
         .to(".stage-camera", { xPercent: -15, yPercent: 2, scale: 1.16 }, 0.5)
         .addLabel("spatial", 0.75)
         .to(".stage-copy-model", { autoAlpha: 0, y: -28 }, 0.74)
@@ -322,6 +360,15 @@ function ResearchStage() {
         .to(".motion-trail", { drawSVG: "0% 100%", duration: 0.18, stagger: 0.04 }, 0.77)
         .to(".skeleton-node", { autoAlpha: 1, scale: 1, duration: 0.18, stagger: { amount: 0.24, from: "center" } }, 0.78)
         .to(".xr-plane", { autoAlpha: 1, xPercent: 0, rotationY: 0, duration: 0.18, stagger: 0.09 }, 0.82)
+        .to(".paper-orbit-card", {
+          xPercent: (index) => [-56, -34, 24, 48, -42, 34, 60][index] || 0,
+          yPercent: (index) => [38, -42, -34, 36, 8, -12, 42][index] || 0,
+          rotationX: (index) => (index % 2 === 0 ? 10 : -8),
+          rotationY: (index) => (index % 2 === 0 ? -22 : 24),
+          autoAlpha: 0.38,
+          scale: 0.74,
+          stagger: 0.01,
+        }, 0.78)
         .to(".stage-camera", { xPercent: -18, yPercent: 0, scale: 1.2 }, 0.75)
         .to(".spatial-caption", { autoAlpha: 1, y: 0 }, 0.88);
 
@@ -405,6 +452,7 @@ function ResearchStage() {
           <Waveform />
           <TokenGrid />
           <RouteField />
+          <ResearchOrbit />
           <ModelDiagram />
           <MotionSkeleton />
           <XRPlanes />
@@ -435,6 +483,49 @@ function ResearchStage() {
         <StageMeter activeStage={activeStage} />
       </div>
     </section>
+  );
+}
+
+function ResearchOrbit() {
+  return (
+    <div className="research-orbit" aria-hidden="true">
+      <svg className="orbit-map" viewBox="0 0 940 560">
+        <path
+          className="orbit-path orbit-path-main"
+          d="M78 334 C210 148 390 96 542 166 C698 238 704 398 858 458"
+        />
+        <path
+          className="orbit-path"
+          d="M132 160 C270 258 386 292 514 258 C650 222 734 260 828 344"
+        />
+        <path
+          className="orbit-path"
+          d="M236 466 C342 338 448 318 574 378 C660 420 734 402 840 278"
+        />
+        {[
+          [78, 334],
+          [236, 466],
+          [390, 96],
+          [514, 258],
+          [704, 398],
+          [828, 344],
+          [858, 458],
+        ].map(([cx, cy]) => (
+          <circle className="orbit-node" key={`${cx}-${cy}`} cx={cx} cy={cy} r="7" />
+        ))}
+      </svg>
+      <div className="orbit-stack">
+        {papers.map((paper, index) => (
+          <figure className="paper-orbit-card" key={`orbit-${paper.title}`}>
+            <img src={paper.image} alt="" loading={index < 3 ? "eager" : "lazy"} />
+            <figcaption>
+              <span>{paper.venue}</span>
+              <strong>{paper.type}</strong>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -777,6 +868,7 @@ function StageMeter({ activeStage }) {
 function PublicationProof() {
   const proofRef = useRef(null);
   const previewRef = useRef(null);
+  const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
 
   useGSAP(
     () => {
@@ -844,7 +936,19 @@ function PublicationProof() {
           const spotlight = proofRef.current.querySelector(".paper-spotlight");
           const frames = gsap.utils.toArray(".spotlight-frame", spotlight);
           const panels = gsap.utils.toArray(".spotlight-copy-panel", spotlight);
+          const railItems = gsap.utils.toArray(".spotlight-rail-item", spotlight);
           const progressFill = spotlight.querySelector(".spotlight-progress-fill");
+          let currentSpotlightIndex = 0;
+          const syncSpotlightIndex = (progress) => {
+            const nextIndex = Math.min(
+              frames.length - 1,
+              Math.max(0, Math.round(progress * (frames.length - 1))),
+            );
+            if (nextIndex !== currentSpotlightIndex) {
+              currentSpotlightIndex = nextIndex;
+              setActiveSpotlightIndex(nextIndex);
+            }
+          };
 
           gsap.set(frames, {
             autoAlpha: 0,
@@ -853,9 +957,13 @@ function PublicationProof() {
             rotation: (index) => (index % 2 === 0 ? -5 : 5),
             transformOrigin: "50% 60%",
           });
+          gsap.set(".spotlight-frame img", { scale: 1.08, xPercent: 0, yPercent: 0 });
           gsap.set(frames[0], { autoAlpha: 1, yPercent: 0, scale: 1, rotation: 0 });
+          gsap.set(frames[0].querySelector("img"), { scale: 1.02 });
           gsap.set(panels, { autoAlpha: 0, y: 22 });
           gsap.set(panels[0], { autoAlpha: 1, y: 0 });
+          gsap.set(railItems, { autoAlpha: 0.52, scale: 0.92, transformOrigin: "50% 50%" });
+          gsap.set(railItems[0], { autoAlpha: 1, scale: 1 });
           gsap.set(progressFill, { scaleX: 1 / frames.length, transformOrigin: "left center" });
 
           const spotlightTimeline = gsap.timeline({
@@ -868,18 +976,22 @@ function PublicationProof() {
               pin: true,
               anticipatePin: 1,
               invalidateOnRefresh: true,
+              onUpdate: (self) => syncSpotlightIndex(self.progress),
             },
           });
 
           spotlightTimeline
             .to(progressFill, { scaleX: 1, duration: frames.length - 1 }, 0)
-            .to(".spotlight-stage", { rotationX: 4, rotationY: -3, duration: frames.length - 1 }, 0);
+            .to(".spotlight-stage", { rotationX: 4, rotationY: -3, duration: frames.length - 1 }, 0)
+            .to(".spotlight-rail", { yPercent: -8, duration: frames.length - 1 }, 0);
 
           frames.slice(1).forEach((frame, index) => {
             const currentIndex = index + 1;
             const previousFrame = frames[currentIndex - 1];
             const previousPanel = panels[currentIndex - 1];
             const currentPanel = panels[currentIndex];
+            const previousRail = railItems[currentIndex - 1];
+            const currentRail = railItems[currentIndex];
             const at = currentIndex;
 
             spotlightTimeline
@@ -890,6 +1002,12 @@ function PublicationProof() {
                 rotation: currentIndex % 2 === 0 ? -4 : 4,
                 duration: 0.64,
               }, at - 0.48)
+              .to(previousFrame.querySelector("img"), {
+                scale: 1.16,
+                xPercent: currentIndex % 2 === 0 ? -3 : 3,
+                yPercent: -2,
+                duration: 0.64,
+              }, at - 0.48)
               .to(frame, {
                 autoAlpha: 1,
                 yPercent: 0,
@@ -897,8 +1015,16 @@ function PublicationProof() {
                 rotation: 0,
                 duration: 0.72,
               }, at - 0.4)
+              .to(frame.querySelector("img"), {
+                scale: 1.02,
+                xPercent: 0,
+                yPercent: 0,
+                duration: 0.72,
+              }, at - 0.4)
               .to(previousPanel, { autoAlpha: 0, y: -20, duration: 0.42 }, at - 0.42)
-              .to(currentPanel, { autoAlpha: 1, y: 0, duration: 0.48 }, at - 0.28);
+              .to(currentPanel, { autoAlpha: 1, y: 0, duration: 0.48 }, at - 0.28)
+              .to(previousRail, { autoAlpha: 0.52, scale: 0.92, duration: 0.34 }, at - 0.36)
+              .to(currentRail, { autoAlpha: 1, scale: 1, duration: 0.36 }, at - 0.28);
           });
         });
       }
@@ -1027,6 +1153,20 @@ function PublicationProof() {
               <figcaption>
                 <span>{paper.venue}</span>
                 <strong>{paper.type}</strong>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="spotlight-rail" aria-hidden="true">
+          {papers.map((paper, index) => (
+            <figure
+              className={`spotlight-rail-item ${index === activeSpotlightIndex ? "is-active" : ""}`}
+              key={`spotlight-rail-${paper.title}`}
+            >
+              <img src={paper.image} alt="" loading="lazy" />
+              <figcaption>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{paper.venue}</strong>
               </figcaption>
             </figure>
           ))}

@@ -1,12 +1,19 @@
 # MalouTech Website Rebuild
 
-Repository for rebuilding the MalouTech website.
+Repository for rebuilding the MalouTech website as a research-focused nonprofit site.
 
-## Scope
+## Current Direction
 
-- Organization: MalouTech, a research-focused nonprofit.
-- Existing site reference: https://www.maloutech.com/contact
+- Organization reference: https://www.maloutech.com/contact
 - Publication source reference: https://xulongt.github.io/
-- Current phase: repository setup and design planning.
+- Frontend stack: Vite, React, GSAP, ScrollTrigger, ScrollSmoother.
+- Content direction: AI-generated art, human motion generation, multimodal learning, and XR research.
+- Asset direction: use real publication imagery first, then generate missing assets when the paper record does not provide enough material.
 
-Website implementation will start after the design direction, content model, and publication data workflow are decided.
+## Local Commands
+
+```bash
+npm install
+npm run build
+npm run dev
+```
