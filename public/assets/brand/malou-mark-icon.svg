@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">MalouTech app icon</title>
+  <desc id="desc">A high-contrast app icon based on the original Malou Tech gear, headphones, and T shaped mark.</desc>
+  <rect width="512" height="512" fill="#090B0C" />
+  <g transform="translate(66 66) scale(.74)">
+    <g fill="none" stroke="#EDE6D8" stroke-linecap="round" stroke-linejoin="round">
+      <path
+        d="M255 18h46l14 48 43 12 38-31 40 23-10 48 31 31 48-10 23 40-31 38 12 43 48 14v46l-48 14-12 43 31 38-23 40-48-10-31 31 10 48-40 23-38-31-43 12-14 48h-46l-14-48-43-12-38 31-40-23 10-48-31-31-48 10-23-40 31-38-12-43-48-14v-46l48-14 12-43-31-38 23-40 48 10 31-31-10-48 40-23 38 31 43-12 14-48Z"
+        stroke-width="10"
+        opacity=".72"
+      />
+      <circle cx="256" cy="286" r="164" stroke-width="9" opacity=".64" />
+      <path d="M140 302c-43-12-70-38-70-75 0-38 31-66 75-72" stroke-width="16" opacity=".9" />
+      <path d="M372 155c44 6 75 34 75 72 0 37-27 63-70 75" stroke-width="16" opacity=".9" />
+      <path d="M150 278h212" stroke-width="34" />
+      <path d="M256 278v142" stroke-width="34" />
+      <path d="M173 354c34 46 88 66 142 52" stroke-width="9" opacity=".52" />
+      <path d="M181 206c25-46 89-65 139-34 8 5 15 11 22 18" stroke-width="9" opacity=".52" />
+    </g>
+    <circle cx="256" cy="286" r="7" fill="#66C6C8" />
+  </g>
+</svg>
