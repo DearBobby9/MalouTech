@@ -1,15 +1,23 @@
+export const assetPath = (path) => `${import.meta.env.BASE_URL}${path}`;
+
 export const papers = [
   {
     title:
       "MACE-Dance: Motion-Appearance Cascaded Experts for Music-Driven Dance Video Generation",
     venue: "SIGGRAPH 2026",
     type: "Motion + Appearance",
-    image: "/assets/papers/display/mace-dance.png",
+    image: assetPath("assets/papers/display/mace-dance.png"),
     authors:
       "Kaixing Yang, Jiashu Zhu, Xulong Tang, Ziqiao Peng, Xiangyue Zhang, Puwei Wang, Jiahong Wu, Xiangxiang Chu, Hongyan Liu, Jun He",
     contribution:
       "Cascaded experts separate motion reasoning and appearance fidelity for music-driven dance video generation.",
     themes: ["AI Motion", "Dance Generation", "Video"],
+    evidence: {
+      signal: "Music input",
+      method: "Motion-appearance cascaded experts",
+      output: "Dance video generation",
+      artifacts: "Paper, project, code",
+    },
     links: [
       { label: "Paper", href: "https://arxiv.org/abs/2512.18181" },
       { label: "Project", href: "https://sun-happy-ykx.github.io/MACE-Dance/" },
@@ -22,11 +30,17 @@ export const papers = [
     title: "Personalized Dance Synthesis Based on Physical and Cognitive Intensities",
     venue: "IEEE VR 2026",
     type: "XR Motion",
-    image: "/assets/papers/display/personalized-dance.png",
+    image: assetPath("assets/papers/display/personalized-dance.png"),
     authors: "Xulong Tang, Eun Yeo, Ruiyu Mao, Xiaohu Guo, Rawan Alghofaili",
     contribution:
       "Connects personalized dance synthesis with physical and cognitive intensity for XR-facing motion systems.",
     themes: ["XR", "Human Motion", "Personalization"],
+    evidence: {
+      signal: "Physical and cognitive intensities",
+      method: "Personalized dance synthesis",
+      output: "XR-facing motion system",
+      artifacts: "Project page",
+    },
     links: [{ label: "Project", href: "https://xulongt.github.io/ARDance26/" }],
     assetCredit: "Publication preview from Xulong Tang's homepage",
     accent: "cyan",
@@ -35,11 +49,17 @@ export const papers = [
     title: "TokenDance: Token-to-Token Music-to-Dance Generation with Bidirectional Mamba",
     venue: "CVPR Workshop 2026",
     type: "Token Motion",
-    image: "/assets/papers/display/token-dance.png",
+    image: assetPath("assets/papers/display/token-dance.png"),
     authors: "Ziyue Yang, Kaixing Yang, Xulong Tang",
     contribution:
       "Frames music-to-dance generation as token-to-token sequence modeling with bidirectional temporal structure.",
     themes: ["AI Motion", "Multimodal Learning", "Sequence Modeling"],
+    evidence: {
+      signal: "Music and motion tokens",
+      method: "Token-to-token Bidirectional Mamba",
+      output: "Music-to-dance generation",
+      artifacts: "Publication preview",
+    },
     links: [],
     assetCredit: "Publication preview from Xulong Tang's homepage",
     accent: "amber",
@@ -48,11 +68,17 @@ export const papers = [
     title: "MEGADance: Mixture-of-Experts Architecture for Genre-Aware 3D Dance Generation",
     venue: "NeurIPS 2025",
     type: "Mixture of Experts",
-    image: "/assets/papers/display/megadance.png",
+    image: assetPath("assets/papers/display/megadance.png"),
     authors: "Kaixing Yang*, Xulong Tang*, Ziqiao Peng, Yuxuan Hu, Jun He, Hongyan Liu",
     contribution:
       "Uses mixture-of-experts modeling to generate genre-aware 3D dance motion.",
     themes: ["3D Motion", "Dance Generation", "Generative Models"],
+    evidence: {
+      signal: "Genre-aware dance input",
+      method: "Mixture-of-experts architecture",
+      output: "3D dance generation",
+      artifacts: "Paper, code",
+    },
     links: [
       { label: "Paper", href: "https://openreview.net/pdf/16fa3852729d55b9ccb266a7467e35baa1439a7c.pdf" },
       { label: "Code", href: "https://github.com/XulongT/MEGADance" },
@@ -64,11 +90,17 @@ export const papers = [
     title: "CoheDancers: Interactive Group Dance Generation via Music-Driven Coherence Decomposition",
     venue: "ACM MM 2025",
     type: "Group Coherence",
-    image: "/assets/papers/display/cohedancers.png",
+    image: assetPath("assets/papers/display/cohedancers.png"),
     authors: "Kaixing Yang*, Xulong Tang*, Haoyu Wu, Qinliang Xue, Biao Qin, Hongyan Liu, Zhaoxin Fan",
     contribution:
       "Decomposes group coherence so interactive dance generation can preserve ensemble structure.",
     themes: ["Group Motion", "Music-Driven Generation", "Interaction"],
+    evidence: {
+      signal: "Music-driven group motion",
+      method: "Coherence decomposition",
+      output: "Interactive group dance generation",
+      artifacts: "Paper, code",
+    },
     links: [
       { label: "Paper", href: "https://dl.acm.org/doi/epdf/10.1145/3746027.3755267" },
       { label: "Code", href: "https://github.com/XulongT/CoheDancers" },
@@ -80,11 +112,17 @@ export const papers = [
     title: "CoDancers: Music-Driven Coherent Group Dance Generation with Choreographic Unit",
     venue: "ICMR 2024",
     type: "Group Dance",
-    image: "/assets/papers/display/codancers.png",
+    image: assetPath("assets/papers/display/codancers.png"),
     authors: "Kaixing Yang*, Xulong Tang*, Ran Diao, Hongyan Liu, Jun He, Zhaoxin Fan",
     contribution:
       "Models choreographic units to improve coherence in music-driven group dance generation.",
     themes: ["Group Motion", "Retrieval", "Dance Generation"],
+    evidence: {
+      signal: "Music and choreographic units",
+      method: "Choreographic unit modeling",
+      output: "Coherent group dance generation",
+      artifacts: "Paper, code",
+    },
     links: [
       { label: "Paper", href: "https://dl.acm.org/doi/epdf/10.1145/3652583.3657998" },
       { label: "Code", href: "https://github.com/XulongT/CoDancers" },
@@ -96,11 +134,17 @@ export const papers = [
     title: "BeatDance: A Beat-Based Model-Agnostic Contrastive Learning Framework for Music-Dance Retrieval",
     venue: "ICMR 2024",
     type: "Retrieval",
-    image: "/assets/papers/display/beatdance.png",
+    image: assetPath("assets/papers/display/beatdance.png"),
     authors: "Kaixing Yang, Xukun Zhou, Xulong Tang, Ran Diao, Hongyan Liu, Jun He, Zhaoxin Fan",
     contribution:
       "Uses beat-aligned contrastive learning to improve music-dance retrieval across model families.",
     themes: ["Multimedia Retrieval", "Music-Dance Alignment", "Evaluation"],
+    evidence: {
+      signal: "Beat-aligned music and dance",
+      method: "Model-agnostic contrastive learning",
+      output: "Music-dance retrieval",
+      artifacts: "Paper, code",
+    },
     links: [
       { label: "Paper", href: "https://dl.acm.org/doi/epdf/10.1145/3652583.3658045" },
       { label: "Code", href: "https://github.com/XulongT/BeatDance" },

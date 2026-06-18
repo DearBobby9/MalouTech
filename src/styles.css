@@ -1522,6 +1522,74 @@ a {
   line-height: 1.5;
 }
 
+.paper-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  width: min(760px, 100%);
+  margin-top: 20px;
+  border: 1px solid rgba(237, 230, 216, 0.11);
+  background: rgba(237, 230, 216, 0.08);
+  overflow: hidden;
+}
+
+.paper-evidence-row {
+  display: grid;
+  min-height: 76px;
+  align-content: space-between;
+  gap: 14px;
+  background:
+    linear-gradient(135deg, rgba(102, 198, 200, 0.06), transparent 58%),
+    rgba(9, 11, 12, 0.58);
+  padding: 14px;
+  will-change: transform, opacity;
+}
+
+.paper-evidence-row span {
+  color: var(--cyan);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.64rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.paper-evidence-row strong {
+  color: rgba(237, 230, 216, 0.82);
+  font-size: 0.94rem;
+  line-height: 1.22;
+  font-weight: 520;
+}
+
+.paper-artifact-meter {
+  width: min(760px, 100%);
+  height: 2px;
+  margin-top: 14px;
+  background: rgba(237, 230, 216, 0.1);
+  overflow: hidden;
+}
+
+.paper-artifact-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(1);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.paper-artifact-amber {
+  background: var(--amber);
+}
+
+.paper-artifact-cyan {
+  background: var(--cyan);
+}
+
+.paper-artifact-rust {
+  background: var(--rust);
+}
+
 .paper-themes {
   display: flex;
   gap: 8px;
@@ -2417,6 +2485,22 @@ a {
   .paper-meta span {
     display: block;
     margin: 6px 0 0;
+  }
+
+  .paper-evidence-grid {
+    grid-template-columns: 1fr;
+    margin-top: 18px;
+  }
+
+  .paper-evidence-row {
+    min-height: 68px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .paper-evidence-row strong {
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
   }
 
   .paper-preview {

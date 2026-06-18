@@ -6,6 +6,7 @@ Repository for rebuilding the MalouTech website as a research-focused nonprofit 
 
 - Organization reference: https://www.maloutech.com/contact
 - Publication source reference: https://xulongt.github.io/
+- GitHub Pages preview: https://dearbobby9.github.io/MalouTech/
 - Frontend stack: Vite, React, GSAP, ScrollTrigger, ScrollSmoother.
 - Content direction: AI-generated art, human motion generation, multimodal learning, and XR research.
 - Asset direction: use real publication imagery first, then generate missing assets when the paper record does not provide enough material.
@@ -17,3 +18,8 @@ npm install
 npm run build
 npm run dev
 ```
+
+## Deployment
+
+GitHub Pages is configured through `.github/workflows/deploy-pages.yml`.
+Pushing to `main` builds the Vite app with the `/MalouTech/` base path and deploys `dist` to Pages.

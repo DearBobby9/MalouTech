@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.maloutech.com/sitemap.xml
+Sitemap: https://dearbobby9.github.io/MalouTech/sitemap.xml

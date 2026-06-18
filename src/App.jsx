@@ -8,7 +8,7 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { CustomEase } from "gsap/CustomEase";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { contactLinks, papers, people, pillars, publicationNews } from "./data/site";
+import { assetPath, contactLinks, papers, people, pillars, publicationNews } from "./data/site";
 
 gsap.registerPlugin(
   useGSAP,
@@ -431,7 +431,7 @@ function ResearchStage() {
     <section className="stage-section" ref={stageRef} aria-label="MalouTech research stage">
       <header className="topbar" aria-label="Primary navigation">
         <a className="brand" href="#top" aria-label="MalouTech home">
-          <img className="brand-mark" src="/assets/brand/malou-mark.svg" alt="" />
+          <img className="brand-mark" src={assetPath("assets/brand/malou-mark.svg")} alt="" />
           MalouTech
         </a>
         <nav className="nav-links">
@@ -444,7 +444,7 @@ function ResearchStage() {
 
       <div className="stage-viewport" id="top">
         <div className="stage-camera">
-          <img className="brand-watermark" src="/assets/brand/malou-mark.svg" alt="" />
+          <img className="brand-watermark" src={assetPath("assets/brand/malou-mark.svg")} alt="" />
           <div className="stage-grid" />
           <div className="stage-orb stage-orb-a" />
           <div className="stage-orb stage-orb-b" />
@@ -1051,6 +1051,13 @@ function PublicationProof() {
         start: "top 82%",
         once: true,
         onEnter: (batch) => {
+          const evidenceRows = batch.flatMap((card) =>
+            gsap.utils.toArray(".paper-evidence-row", card),
+          );
+          const artifactFills = batch.flatMap((card) =>
+            gsap.utils.toArray(".paper-artifact-fill", card),
+          );
+
           gsap.from(batch, {
             y: 46,
             autoAlpha: 0,
@@ -1060,6 +1067,25 @@ function PublicationProof() {
             stagger: 0.1,
             overwrite: true,
           });
+          gsap.from(evidenceRows, {
+            y: 16,
+            autoAlpha: 0,
+            duration: 0.58,
+            ease: "power3.out",
+            stagger: 0.035,
+            overwrite: true,
+          });
+          gsap.fromTo(
+            artifactFills,
+            { scaleX: 0 },
+            {
+              scaleX: 1,
+              duration: 0.72,
+              ease: "power3.out",
+              stagger: 0.045,
+              overwrite: true,
+            },
+          );
         },
       });
 
@@ -1193,7 +1219,7 @@ function PublicationProof() {
           ))}
         </div>
         <div className="spotlight-stage" aria-hidden="true">
-          <img className="spotlight-mark" src="/assets/brand/malou-mark.svg" alt="" />
+          <img className="spotlight-mark" src={assetPath("assets/brand/malou-mark.svg")} alt="" />
           {papers.map((paper, index) => (
             <figure className="spotlight-frame" key={`spotlight-frame-${paper.title}`}>
               <img src={paper.image} alt="" loading={index === 0 ? "eager" : "lazy"} />
@@ -1244,6 +1270,22 @@ function PublicationProof() {
               <h3>{paper.title}</h3>
               <p className="paper-authors">{paper.authors}</p>
               <p className="paper-contribution">{paper.contribution}</p>
+              <div className="paper-evidence-grid" aria-label={`Evidence matrix for ${paper.title}`}>
+                {[
+                  ["Signal", paper.evidence.signal],
+                  ["Method", paper.evidence.method],
+                  ["Output", paper.evidence.output],
+                  ["Artifact", paper.evidence.artifacts],
+                ].map(([label, value]) => (
+                  <div className="paper-evidence-row" key={`${paper.title}-${label}`}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="paper-artifact-meter" aria-hidden="true">
+                <span className={`paper-artifact-fill paper-artifact-${paper.accent}`} />
+              </div>
               <div className="paper-themes" aria-label={`Themes for ${paper.title}`}>
                 {paper.themes.map((theme) => (
                   <span key={theme}>{theme}</span>
@@ -1645,7 +1687,7 @@ function AboutContact() {
 
       <div className="about-evidence" aria-label="Research evidence surface">
         <div className="about-evidence-copy">
-          <img src="/assets/brand/malou-mark.svg" alt="" />
+          <img src={assetPath("assets/brand/malou-mark.svg")} alt="" />
           <p>Evidence surface</p>
           <h3>Publication artifacts form the lab's public research surface.</h3>
           <span>
