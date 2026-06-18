@@ -8,7 +8,7 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { CustomEase } from "gsap/CustomEase";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { contactLinks, papers, people, pillars } from "./data/site";
+import { contactLinks, papers, people, pillars, publicationNews } from "./data/site";
 
 gsap.registerPlugin(
   useGSAP,
@@ -878,6 +878,7 @@ function PublicationProof() {
       const mm = gsap.matchMedia();
 
       gsap.set(".publication-trace-path", { drawSVG: "0% 0%" });
+      gsap.set(".ledger-trace-path", { drawSVG: "0% 0%" });
       gsap.set(".publication-pulse", { autoAlpha: 0, scale: 0.5, transformOrigin: "50% 50%" });
       gsap.set(".spotlight-progress-fill", { scaleX: 1 / papers.length, transformOrigin: "left center" });
 
@@ -895,7 +896,7 @@ function PublicationProof() {
       });
 
       if (reduceMotion) {
-        gsap.set(".publication-trace-path, .publication-pulse", {
+        gsap.set(".publication-trace-path, .publication-pulse, .ledger-trace-path", {
           clearProps: "all",
           autoAlpha: 1,
           scale: 1,
@@ -931,6 +932,23 @@ function PublicationProof() {
             },
             duration: 0.52,
           }, 0.26);
+
+        gsap.timeline({
+          defaults: { ease: "none" },
+          scrollTrigger: {
+            trigger: ".source-ledger",
+            start: "top 78%",
+            end: "bottom 36%",
+            scrub: 0.7,
+          },
+        })
+          .to(".ledger-trace-path", { drawSVG: "0% 100%", duration: 0.5 }, 0)
+          .to(".source-ledger-card", {
+            y: (index) => (index % 2 === 0 ? -18 : 18),
+            rotation: (index) => (index % 2 === 0 ? -0.8 : 0.8),
+            stagger: 0.04,
+            duration: 0.5,
+          }, 0);
 
         mm.add("(min-width: 900px)", () => {
           const spotlight = proofRef.current.querySelector(".paper-spotlight");
@@ -1045,6 +1063,34 @@ function PublicationProof() {
         },
       });
 
+      ScrollTrigger.batch(".source-ledger-card", {
+        start: "top 84%",
+        once: true,
+        onEnter: (batch) => {
+          gsap.from(batch, {
+            y: 42,
+            autoAlpha: 0,
+            scale: 0.96,
+            duration: 0.72,
+            ease: "power3.out",
+            stagger: 0.08,
+            overwrite: true,
+          });
+        },
+      });
+
+      gsap.to(".source-ledger-card img", {
+        scale: 1.08,
+        xPercent: (index) => (index % 2 === 0 ? -4 : 4),
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".source-ledger",
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 0.8,
+        },
+      });
+
       const preview = previewRef.current;
       const xTo = gsap.quickTo(preview, "x", { duration: 0.36, ease: "power3" });
       const yTo = gsap.quickTo(preview, "y", { duration: 0.36, ease: "power3" });
@@ -1129,6 +1175,7 @@ function PublicationProof() {
           Source: Xulong Tang publication list
         </a>
       </div>
+      <SourceLedger />
       <div className="paper-spotlight" aria-label="Scroll-linked publication spotlight">
         <div className="spotlight-copy">
           {papers.map((paper, index) => (
@@ -1223,6 +1270,49 @@ function PublicationProof() {
         <p className="preview-venue">SIGGRAPH 2026</p>
         <p className="preview-type">Motion + Appearance</p>
         <p className="preview-title">MACE-Dance</p>
+      </div>
+    </section>
+  );
+}
+
+function SourceLedger() {
+  return (
+    <section className="source-ledger" aria-label="Publication acceptance timeline from source material">
+      <svg className="ledger-trace" viewBox="0 0 980 260" aria-hidden="true">
+        <path
+          className="ledger-trace-path"
+          d="M42 178 C180 52 314 70 438 126 C586 194 690 188 926 58"
+        />
+      </svg>
+      <div className="source-ledger-copy">
+        <p className="section-kicker">Accepted research</p>
+        <h3>Latest source-backed publication milestones.</h3>
+        <a href="https://xulongt.github.io/#publications" target="_blank" rel="noreferrer">
+          Verified from Xulong Tang homepage
+        </a>
+      </div>
+      <div className="source-ledger-grid">
+        {publicationNews.map((item, index) => (
+          <article className="source-ledger-card" key={`${item.date}-${item.title}`}>
+            <div className="ledger-card-meta">
+              <span>{item.date}</span>
+              <strong>{String(index + 1).padStart(2, "0")}</strong>
+            </div>
+            <div className="ledger-card-media">
+              {item.evidence.map((paperIndex) => {
+                const paper = papers[paperIndex];
+                return (
+                  <figure key={`${item.title}-${paper.title}`}>
+                    <img src={paper.image} alt="" loading="lazy" />
+                    <figcaption>{paper.venue}</figcaption>
+                  </figure>
+                );
+              })}
+            </div>
+            <h4>{item.title}</h4>
+            <p>{item.detail}</p>
+          </article>
+        ))}
       </div>
     </section>
   );

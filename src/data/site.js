@@ -137,6 +137,45 @@ export const pillars = [
   },
 ];
 
+export const publicationNews = [
+  {
+    date: "2026.03",
+    title: "SIGGRAPH 2026 conditional acceptance",
+    detail: "MACE-Dance was conditionally accepted at SIGGRAPH 2026.",
+    evidence: [0],
+  },
+  {
+    date: "2026.03",
+    title: "CVPR Workshop 2026 acceptance",
+    detail: "TokenDance was accepted at CVPR Workshop 2026.",
+    evidence: [2],
+  },
+  {
+    date: "2026.01",
+    title: "IEEE VR 2026 acceptance",
+    detail: "Personalized Dance Synthesis was accepted at IEEE VR 2026.",
+    evidence: [1],
+  },
+  {
+    date: "2025.09",
+    title: "NeurIPS 2025 acceptance",
+    detail: "MEGADance was accepted at NeurIPS 2025.",
+    evidence: [3],
+  },
+  {
+    date: "2025.07",
+    title: "ACM Multimedia 2025 acceptance",
+    detail: "CoheDancers was accepted at ACM Multimedia 2025.",
+    evidence: [4],
+  },
+  {
+    date: "2024.06",
+    title: "ICMR 2024 acceptances",
+    detail: "CoDancers and BeatDance were accepted at ICMR 2024.",
+    evidence: [5, 6],
+  },
+];
+
 export const people = [
   {
     name: "Xulong Tang",
