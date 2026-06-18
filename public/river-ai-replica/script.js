@@ -482,6 +482,13 @@ function initHeroWebGL() {
       return 0.245 + bend * bend * 0.23;
     }
 
+    float terrainHeight(vec2 p) {
+      float large = fbm(p * vec2(1.7, 1.1) + vec2(3.0, 7.0));
+      float mid = fbm(p * vec2(4.6, 3.2) + vec2(11.0, 2.0));
+      float fine = fbm(p * vec2(13.0, 9.0));
+      return large * 0.55 + mid * 0.32 + fine * 0.13;
+    }
+
     vec3 skyColor(vec2 uv) {
       vec3 top = vec3(0.055, 0.205, 0.505);
       vec3 mid = vec3(0.42, 0.66, 0.68);
@@ -548,9 +555,17 @@ function initHeroWebGL() {
       float wallBand = smoothstep(wallStart, wallStart + 0.018, dx) * (1.0 - smoothstep(wallEnd, wallEnd + 0.08, dx));
       float wallPos = saturate((dx - wallStart) / max(wallSpan, 0.001));
       float shelves = sin(worldZ * 72.0 + wallPos * 22.0 + side * 1.7 + fbm(vec2(worldZ * 8.0, wallPos * 3.2)) * 4.0);
-      float terrain = fbm(vec2((cellCenter.x - center) * 5.2 + side * 3.0, worldZ * 10.0 - u_time * 0.08));
-      float topo = 1.0 - smoothstep(0.018, 0.045, abs(fract((terrain + worldZ * 0.32 + wallPos * 0.36) * 8.0) - 0.5));
-      float canyon = wallBand * (0.24 + 0.72 * terrain + topo * 0.14) * (0.62 + 0.38 * smoothstep(-0.35, 1.0, shelves)) * smoothstep(0.03, 0.9, cDepth);
+      vec2 terrainP = vec2((cellCenter.x - center) / max(wallSpan, 0.001) * 1.8 + side * 2.2, worldZ * 3.2);
+      float terrain = terrainHeight(terrainP);
+      float terrainE = terrainHeight(terrainP + vec2(0.025, 0.0));
+      float terrainN = terrainHeight(terrainP + vec2(0.0, 0.025));
+      vec2 slope = vec2(terrain - terrainE, terrain - terrainN) * vec2(8.0, 5.0);
+      float hillShade = clamp(0.58 + dot(normalize(vec3(slope, 1.0)), normalize(vec3(-0.45, 0.42, 0.78))) * 0.58, 0.12, 1.32);
+      float selfShadow = smoothstep(0.18, 0.78, wallPos) * smoothstep(0.16, 0.92, cDepth) * (1.0 - hillShade);
+      float topo = 1.0 - smoothstep(0.015, 0.042, abs(fract((terrain + worldZ * 0.32 + wallPos * 0.42) * 9.0) - 0.5));
+      float reliefInk = smoothstep(0.48, 0.88, terrain) * smoothstep(0.12, 0.92, wallPos);
+      float canyon = wallBand * (0.18 + 0.56 * terrain + topo * 0.18 + reliefInk * 0.14) * (0.62 + 0.38 * smoothstep(-0.35, 1.0, shelves)) * smoothstep(0.03, 0.9, cDepth);
+      canyon *= mix(0.76, 1.24, hillShade);
 
       float rimLeft = exp(-abs(dx - riverLimit) / (0.0028 + cz * 0.0045));
       float ridge = exp(-abs(dx - (riverLimit + wallSpan * 0.74)) / (0.004 + cz * 0.008));
@@ -575,8 +590,15 @@ function initHeroWebGL() {
       float blurC = glyphMask(local + vec2(0.0, 0.06), glyphIndex);
       float blurD = glyphMask(local + vec2(0.0, -0.06), glyphIndex);
       float softGlyph = mix(glyph, (glyph + blurA + blurB + blurC + blurD) * 0.2, 0.31);
+      float bloomGlyph = (
+        glyphMask(local + vec2(0.14, 0.0), glyphIndex) +
+        glyphMask(local + vec2(-0.14, 0.0), glyphIndex) +
+        glyphMask(local + vec2(0.0, 0.14), glyphIndex) +
+        glyphMask(local + vec2(0.0, -0.14), glyphIndex)
+      ) * 0.25;
       float dot = smoothstep(0.38, 0.15, length(local - 0.5)) * 0.035;
       float ink = saturate((softGlyph * 1.34 + dot) * amount);
+      float glowInk = bloomGlyph * amount * 0.23;
 
       vec3 riverColor = mix(vec3(0.58, 0.80, 0.84), vec3(0.91, 0.99, 0.96), saturate(river));
       vec3 canyonColor = mix(vec3(0.31, 0.49, 0.58), vec3(0.74, 0.86, 0.79), saturate(canyon + ridge));
@@ -584,8 +606,9 @@ function initHeroWebGL() {
       vec3 inkColor = mix(canyonColor, riverColor, smoothstep(0.16, 0.48, river));
       inkColor = mix(inkColor, dustColor, smoothstep(0.02, 0.16, dust) * (1.0 - river));
 
-      color -= vec3(0.03, 0.08, 0.13) * wallBand * smoothstep(0.18, 0.9, cDepth) * (0.18 + wallPos * 0.32);
+      color -= vec3(0.03, 0.08, 0.13) * wallBand * smoothstep(0.18, 0.9, cDepth) * (0.18 + wallPos * 0.32 + selfShadow * 0.52);
       color = mix(color, inkColor, ink);
+      color += glowInk * mix(vec3(0.21, 0.45, 0.52), vec3(0.72, 0.91, 0.86), smoothstep(0.2, 0.72, river));
       color += vec3(0.28, 0.36, 0.32) * rimLeft * groundGate * u_reveal * (0.2 + 0.55 * riverBody);
       color -= vec3(0.04, 0.08, 0.16) * smoothstep(0.77, 1.0, length(uv - vec2(0.5, 0.5)));
 
