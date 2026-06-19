@@ -581,10 +581,10 @@
       const pulse = phase * smooth(band) * falloff * wave.force;
       const nx = vx / distance;
       const ny = vy / distance;
-      dx += nx * pulse * 38;
-      dy += ny * pulse * 22;
-      z += Math.abs(pulse) * 0.24;
-      energy += Math.abs(pulse) * 0.34;
+      dx += nx * pulse * 54;
+      dy += ny * pulse * 32;
+      z += Math.abs(pulse) * 0.34;
+      energy += Math.abs(pulse) * 0.42;
     }
 
     return { dx, dy, z, energy: clamp(energy, 0, 1.5) };
@@ -602,12 +602,41 @@
     };
   }
 
-  function traceWarpedPolyline(points, time, depth) {
-    points.forEach((point, index) => {
-      const warped = warpBackgroundPoint(point[0], point[1], time, depth);
-      if (index === 0) ctx.moveTo(warped.x, warped.y);
-      else ctx.lineTo(warped.x, warped.y);
-    });
+  function waveStrainAt(x, y, time) {
+    const pointer = state.pointer;
+    if (!pointer.waves.length) return 0;
+    const diagonal = Math.hypot(state.width, state.height);
+    let strain = 0;
+    for (const wave of pointer.waves) {
+      const age = time - wave.start;
+      if (age < 0 || age > wave.life) continue;
+      const progress = clamp(age / wave.life, 0, 1);
+      const distance = Math.hypot(x - wave.x, y - wave.y);
+      const radius = diagonal * (0.02 + progress * 0.62);
+      const bandWidth = 42 + progress * 76;
+      const band = Math.max(0, 1 - Math.abs(distance - radius) / bandWidth);
+      if (band <= 0) continue;
+      const falloff = Math.pow(1 - progress, 1.45);
+      const phase = Math.sin((distance - radius) * 0.075 - progress * Math.PI);
+      strain += smooth(band) * falloff * wave.force * (0.45 + Math.abs(phase) * 0.55);
+    }
+    return clamp(strain, 0, 1);
+  }
+
+  function drawWarpedGridLine(points, time, depth, baseAlpha) {
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      const strain = waveStrainAt((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, time);
+      const start = warpBackgroundPoint(a[0], a[1], time, depth);
+      const end = warpBackgroundPoint(b[0], b[1], time, depth);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.strokeStyle = `rgba(${strain > 0.04 ? palette.cyan : palette.paper}, ${baseAlpha + strain * 0.12})`;
+      ctx.lineWidth = 1 + strain * 0.75;
+      ctx.stroke();
+    }
   }
 
   function drawLensCore() {
@@ -653,42 +682,6 @@
     ctx.restore();
   }
 
-  function drawFieldWavefronts(time) {
-    const pointer = state.pointer;
-    if (!pointer.waves.length) return;
-    const diagonal = Math.hypot(state.width, state.height);
-    const segments = qualityName === "low" ? 42 : 70;
-
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.lineCap = "round";
-    for (const wave of pointer.waves) {
-      const age = time - wave.start;
-      if (age < 0 || age > wave.life) continue;
-      const progress = clamp(age / wave.life, 0, 1);
-      const radius = diagonal * (0.02 + progress * 0.62);
-      const alpha = Math.pow(1 - progress, 1.55) * wave.force;
-      for (let ring = 0; ring < 2; ring++) {
-        const ringRadius = radius + (ring - 0.5) * (20 + progress * 18);
-        if (ringRadius <= 0) continue;
-        ctx.beginPath();
-        for (let i = 0; i <= segments; i++) {
-          const angle = (i / segments) * Math.PI * 2;
-          const squash = 0.56 + progress * 0.12;
-          const px = wave.x + Math.cos(angle) * ringRadius;
-          const py = wave.y + Math.sin(angle) * ringRadius * squash;
-          const warped = warpBackgroundPoint(px, py, time, 0.28);
-          if (i === 0) ctx.moveTo(warped.x, warped.y);
-          else ctx.lineTo(warped.x, warped.y);
-        }
-        ctx.strokeStyle = `rgba(${ring === 1 ? palette.cyan : palette.paper}, ${alpha * (0.11 - ring * 0.032)})`;
-        ctx.lineWidth = ring === 1 ? 1.1 : 0.8;
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
-  }
-
   function drawBackground(time, cycle) {
     const w = state.width;
     const h = state.height;
@@ -705,35 +698,27 @@
     drawLensCore();
 
     ctx.save();
-    ctx.globalAlpha = 0.1 + state.logoDisplayLevel * 0.1;
-    ctx.strokeStyle = `rgba(${palette.paper}, 0.16)`;
-    ctx.lineWidth = 1;
     const gap = Math.max(110, profile.gridGap);
     for (let x = (time * 8) % gap - gap; x < w + gap; x += gap) {
-      ctx.beginPath();
       const points = [];
-      const steps = qualityName === "low" ? 7 : 10;
+      const steps = qualityName === "low" ? 8 : 13;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         points.push([x + w * 0.08 * t, h * t]);
       }
-      traceWarpedPolyline(points, time, 0.62);
-      ctx.stroke();
+      drawWarpedGridLine(points, time, 0.62, 0.018 + state.logoDisplayLevel * 0.01);
     }
     for (let y = h * 0.2; y < h; y += gap) {
-      ctx.beginPath();
       const points = [];
-      const steps = qualityName === "low" ? 7 : 12;
+      const steps = qualityName === "low" ? 8 : 14;
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         points.push([w * t, y + Math.sin(time * 0.3 + y + t * Math.PI) * 8]);
       }
-      traceWarpedPolyline(points, time, 0.58);
-      ctx.stroke();
+      drawWarpedGridLine(points, time, 0.58, 0.016 + state.logoDisplayLevel * 0.01);
     }
     ctx.restore();
     drawLensDust(time);
-    drawFieldWavefronts(time);
   }
 
   function updateMotionParticles(time, cycle, geometry) {
