@@ -491,6 +491,159 @@
     ctx.restore();
   }
 
+  function poseBounds(pose) {
+    const points = Object.values(pose).map(posePoint);
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const [x, y] of points) {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    const pad = Math.min(state.width, state.height) * 0.055;
+    return {
+      x: minX - pad,
+      y: minY - pad,
+      width: maxX - minX + pad * 2,
+      height: maxY - minY + pad * 2,
+    };
+  }
+
+  function drawCornerBox(bounds, alpha) {
+    const x = bounds.x;
+    const y = bounds.y;
+    const w = bounds.width;
+    const h = bounds.height;
+    const corner = Math.min(w, h) * 0.14;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${0.18 * alpha})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(x, y + corner);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + corner, y);
+    ctx.moveTo(x + w - corner, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + corner);
+    ctx.moveTo(x + w, y + h - corner);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x + w - corner, y + h);
+    ctx.moveTo(x + corner, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y + h - corner);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawCvLabel(text, x, y, alpha, color = palette.paper) {
+    if (state.width < 720) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = `rgba(${color}, ${alpha})`;
+    ctx.font = "10px SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawCvPoseOverlay(time, pose, prevPose, cycleData) {
+    const { body, follow, logoHold, release } = cycleData;
+    const alpha = clamp((body * 0.32 + follow * 0.78) * (1 - logoHold * 0.96) * (1 - release * 0.72), 0, 1);
+    if (alpha <= 0.045) return;
+
+    const bounds = poseBounds(pose);
+    const landmarkKeys = [
+      "head",
+      "neck",
+      "spine",
+      "lShoulder",
+      "rShoulder",
+      "lElbow",
+      "rElbow",
+      "lHand",
+      "rHand",
+      "lHip",
+      "rHip",
+      "lKnee",
+      "rKnee",
+      "lFoot",
+      "rFoot",
+    ];
+    const vectorKeys = ["lHand", "rHand", "lFoot", "rFoot", "head"];
+
+    drawCornerBox(bounds, alpha);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (let i = 0; i < landmarkKeys.length; i++) {
+      const key = landmarkKeys[i];
+      const [x, y] = posePoint(pose[key]);
+      const pulse = 0.68 + 0.32 * Math.sin(time * 2.1 + i * 0.9);
+      const confidence = 0.72 + 0.22 * Math.sin(time * 0.8 + i * 1.7);
+      const ring = 3.4 + confidence * 2.2 + follow * 1.4;
+      const tone = i % 5 === 0 ? palette.amber : palette.cyan;
+
+      ctx.strokeStyle = `rgba(${tone}, ${(0.2 + confidence * 0.22) * alpha})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(x, y, ring * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(${palette.paper}, ${0.24 * alpha + confidence * 0.22 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.7 + follow * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (state.width >= 720 && (i === 0 || i === 7 || i === 8 || i === 13 || i === 14)) {
+        ctx.fillStyle = `rgba(${palette.cyan}, ${0.28 * alpha})`;
+        ctx.font = "9px SFMono-Regular, Menlo, Consolas, monospace";
+        ctx.fillText(String(i + 1).padStart(2, "0"), x + 8, y - 7);
+      }
+    }
+
+    for (const key of vectorKeys) {
+      const [x, y] = posePoint(pose[key]);
+      const [px, py] = posePoint(prevPose[key]);
+      const vx = (x - px) * 3.2;
+      const vy = (y - py) * 3.2;
+
+      ctx.strokeStyle = `rgba(${palette.amber}, ${0.18 * alpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(x + vx, y + vy);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(x + vx, y + vy, 2.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const scanY = bounds.y + bounds.height * (0.42 + Math.sin(time * 1.4) * 0.18);
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${0.1 * alpha})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bounds.x, scanY);
+    ctx.lineTo(bounds.x + bounds.width, scanY);
+    ctx.stroke();
+    ctx.restore();
+
+    const frame = String(Math.floor((cycleData.raw * 280) % 280)).padStart(3, "0");
+    drawCvLabel(`CV POSE TRACK 03  FRAME ${frame}`, bounds.x, bounds.y - 12, 0.34 * alpha, palette.cyan);
+    drawCvLabel("15 LANDMARKS  CONF 0.92", bounds.x + bounds.width - 178, bounds.y + bounds.height + 18, 0.26 * alpha);
+  }
+
   function updateParticles(time, cycleData, pose) {
     const w = state.width;
     const h = state.height;
@@ -639,6 +792,7 @@
     drawMotionHints(pose, prevPose, cycleData);
     if (!staticMode || force) updateParticles(time, cycleData, pose);
     drawParticles(time, cycleData);
+    drawCvPoseOverlay(time, pose, prevPose, cycleData);
     drawLogoConstellation(cycleData);
   }
 
