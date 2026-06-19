@@ -94,6 +94,11 @@
       targetStrength: 0,
       active: false,
       lastMove: 0,
+      waves: [],
+      waveId: 0,
+      lastWaveAt: 0,
+      lastWaveX: 0,
+      lastWaveY: 0,
     },
   };
 
@@ -504,20 +509,166 @@
     const pointer = state.pointer;
     if (staticMode || reduceMotion || coarsePointer) {
       pointer.strength = 0;
+      pointer.waves.length = 0;
       return;
     }
-    const idle = now - pointer.lastMove > 1500;
+    const idle = now - pointer.lastMove > 900;
     const targetStrength = pointer.active && !idle ? pointer.targetStrength : 0;
-    pointer.x = lerp(pointer.x, pointer.targetX, 0.16);
-    pointer.y = lerp(pointer.y, pointer.targetY, 0.16);
-    pointer.strength = lerp(pointer.strength, targetStrength, 0.09);
+    pointer.x = lerp(pointer.x, pointer.targetX, 0.2);
+    pointer.y = lerp(pointer.y, pointer.targetY, 0.2);
+    pointer.strength = lerp(pointer.strength, targetStrength, 0.12);
+    pointer.waves = pointer.waves.filter((wave) => (now - state.start) / 1000 - wave.start < wave.life);
+  }
+
+  function pushFieldWave(x, y, force, now, type = "drag") {
+    if (staticMode || reduceMotion || coarsePointer) return;
+    const pointer = state.pointer;
+    const maxWaves = profile.cv ? 7 : 4;
+    pointer.waves.push({
+      id: pointer.waveId++,
+      x,
+      y,
+      start: (now - state.start) / 1000,
+      life: type === "press" ? 2.45 : 1.75,
+      force: clamp(force, 0.28, 1.35),
+      spin: hashUnit(x * 0.037 + y * 0.021 + pointer.waveId) > 0.5 ? 1 : -1,
+      type,
+    });
+    if (pointer.waves.length > maxWaves) {
+      pointer.waves.splice(0, pointer.waves.length - maxWaves);
+    }
+  }
+
+  function fieldDisplacement(x, y, time) {
+    const pointer = state.pointer;
+    const diagonal = Math.hypot(state.width, state.height);
+    let dx = 0;
+    let dy = 0;
+    let z = 0;
+    let energy = 0;
+
+    if (pointer.strength > 0.02) {
+      const vx = x - pointer.x;
+      const vy = y - pointer.y;
+      const distance = Math.hypot(vx, vy) || 1;
+      const lens = Math.exp(-distance / 520) * pointer.strength;
+      const drift = Math.sin(time * 1.6 + distance * 0.006) * lens;
+      dx += (vx / distance) * drift * 14;
+      dy += (vy / distance) * drift * 8;
+      z += lens * 0.08;
+      energy += lens * 0.12;
+    }
+
+    for (const wave of pointer.waves) {
+      const age = time - wave.start;
+      if (age < 0 || age > wave.life) continue;
+      const progress = clamp(age / wave.life, 0, 1);
+      const vx = x - wave.x;
+      const vy = y - wave.y;
+      const distance = Math.hypot(vx, vy) || 1;
+      const radius = diagonal * (0.03 + progress * 0.96);
+      const bandWidth = 58 + progress * 142;
+      const band = Math.max(0, 1 - Math.abs(distance - radius) / bandWidth);
+      if (band <= 0) continue;
+      const falloff = Math.pow(1 - progress, 1.25);
+      const pulse = smooth(band) * falloff * wave.force;
+      const nx = vx / distance;
+      const ny = vy / distance;
+      const shear = Math.sin(progress * Math.PI * 2 + distance * 0.006 + wave.id) * pulse * wave.spin;
+      dx += nx * pulse * 104 - ny * shear * 38;
+      dy += ny * pulse * 48 + nx * shear * 24;
+      z += pulse * (1.35 + progress * 0.58);
+      energy += pulse;
+    }
+
+    return { dx, dy, z, energy: clamp(energy, 0, 1.5) };
+  }
+
+  function warpBackgroundPoint(x, y, time, depth = 1) {
+    const field = fieldDisplacement(x, y, time);
+    const vanishingX = state.width * 0.55;
+    const vanishingY = state.height * 0.36;
+    const perspective = 1 + field.z * 0.012 * depth;
+    return {
+      x: vanishingX + (x - vanishingX) * perspective + field.dx * depth,
+      y: vanishingY + (y - vanishingY) * perspective + field.dy * depth,
+      energy: field.energy,
+    };
+  }
+
+  function traceWarpedPolyline(points, time, depth) {
+    points.forEach((point, index) => {
+      const warped = warpBackgroundPoint(point[0], point[1], time, depth);
+      if (index === 0) ctx.moveTo(warped.x, warped.y);
+      else ctx.lineTo(warped.x, warped.y);
+    });
+  }
+
+  function drawFieldSurfaces(time) {
+    const w = state.width;
+    const h = state.height;
+    const panels = [
+      [[w * 0.05, h * 0.2], [w * 0.38, h * 0.12], [w * 0.45, h * 0.36], [w * 0.12, h * 0.48]],
+      [[w * 0.42, h * 0.08], [w * 0.9, h * 0.16], [w * 0.82, h * 0.42], [w * 0.34, h * 0.34]],
+      [[w * 0.2, h * 0.56], [w * 0.58, h * 0.48], [w * 0.68, h * 0.78], [w * 0.1, h * 0.86]],
+      [[w * 0.66, h * 0.38], [w * 1.05, h * 0.3], [w * 1.02, h * 0.72], [w * 0.58, h * 0.68]],
+    ];
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    panels.forEach((panel, index) => {
+      const sample = fieldDisplacement(panel[1][0], panel[1][1], time);
+      const alpha = 0.024 + sample.energy * 0.09;
+      ctx.beginPath();
+      traceWarpedPolyline(panel, time, 0.82 + index * 0.1);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${index % 2 ? palette.paper : palette.cyan}, ${alpha})`;
+      ctx.strokeStyle = `rgba(${palette.cyan}, ${0.045 + sample.energy * 0.18})`;
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawFieldWavefronts(time) {
+    const pointer = state.pointer;
+    if (!pointer.waves.length) return;
+    const diagonal = Math.hypot(state.width, state.height);
+    const segments = qualityName === "low" ? 42 : 70;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (const wave of pointer.waves) {
+      const age = time - wave.start;
+      if (age < 0 || age > wave.life) continue;
+      const progress = clamp(age / wave.life, 0, 1);
+      const radius = diagonal * (0.03 + progress * 0.96);
+      const alpha = Math.pow(1 - progress, 1.35) * wave.force;
+      for (let ring = 0; ring < 3; ring++) {
+        const ringRadius = radius + (ring - 1) * (32 + progress * 28);
+        if (ringRadius <= 0) continue;
+        ctx.beginPath();
+        for (let i = 0; i <= segments; i++) {
+          const angle = (i / segments) * Math.PI * 2;
+          const squash = 0.54 + progress * 0.18;
+          const px = wave.x + Math.cos(angle) * ringRadius;
+          const py = wave.y + Math.sin(angle) * ringRadius * squash;
+          const warped = warpBackgroundPoint(px, py, time, 0.28);
+          if (i === 0) ctx.moveTo(warped.x, warped.y);
+          else ctx.lineTo(warped.x, warped.y);
+        }
+        ctx.strokeStyle = `rgba(${ring === 1 ? palette.cyan : palette.paper}, ${alpha * (0.1 - ring * 0.014)})`;
+        ctx.lineWidth = ring === 1 ? 1.4 : 0.8;
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   function drawBackground(time, cycle) {
     const w = state.width;
     const h = state.height;
-    const pointer = state.pointer;
-    const pointerStrength = pointer.strength;
     ctx.globalCompositeOperation = "source-over";
     if (state.firstPaint || staticMode) {
       ctx.fillStyle = palette.ink;
@@ -528,84 +679,37 @@
       ctx.fillRect(0, 0, w, h);
     }
 
+    drawFieldSurfaces(time);
+
     ctx.save();
-    ctx.globalAlpha = 0.08 + state.logoDisplayLevel * 0.12;
-    ctx.strokeStyle = `rgba(${palette.paper}, 0.14)`;
+    ctx.globalAlpha = 0.1 + state.logoDisplayLevel * 0.1;
+    ctx.strokeStyle = `rgba(${palette.paper}, 0.16)`;
     ctx.lineWidth = 1;
     const gap = Math.max(110, profile.gridGap);
     for (let x = (time * 8) % gap - gap; x < w + gap; x += gap) {
-      const influence = pointerStrength * Math.max(0, 1 - Math.abs(x + w * 0.04 - pointer.x) / 320);
-      const bend = influence * 22 * Math.sin(time * 1.4 + x * 0.012);
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + w * 0.08 + bend, h);
+      const points = [];
+      const steps = qualityName === "low" ? 7 : 10;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        points.push([x + w * 0.08 * t, h * t]);
+      }
+      traceWarpedPolyline(points, time, 0.62);
       ctx.stroke();
     }
     for (let y = h * 0.2; y < h; y += gap) {
-      const influence = pointerStrength * Math.max(0, 1 - Math.abs(y - pointer.y) / 260);
-      const bend = influence * 16 * Math.cos(time * 1.2 + y * 0.014);
       ctx.beginPath();
-      ctx.moveTo(0, y + bend * 0.4);
-      ctx.lineTo(w, y + Math.sin(time * 0.3 + y) * 8 + bend);
+      const points = [];
+      const steps = qualityName === "low" ? 7 : 12;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        points.push([w * t, y + Math.sin(time * 0.3 + y + t * Math.PI) * 8]);
+      }
+      traceWarpedPolyline(points, time, 0.58);
       ctx.stroke();
     }
     ctx.restore();
-  }
-
-  function drawPointerField(time) {
-    const pointer = state.pointer;
-    const strength = pointer.strength;
-    if (strength <= 0.012) return;
-
-    const x = pointer.x;
-    const y = pointer.y;
-    const radius = Math.min(320, Math.max(190, Math.min(state.width, state.height) * 0.24));
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    glow.addColorStop(0, `rgba(${palette.cyan}, ${0.08 * strength})`);
-    glow.addColorStop(0.36, `rgba(${palette.cyan}, ${0.025 * strength})`);
-    glow.addColorStop(1, `rgba(${palette.cyan}, 0)`);
-    ctx.fillStyle = glow;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-
-    ctx.lineCap = "round";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const ring = 36 + i * 38 + Math.sin(time * 1.6 + i) * 5;
-      ctx.strokeStyle = `rgba(${i % 2 ? palette.paper : palette.cyan}, ${strength * (0.055 - i * 0.006)})`;
-      ctx.beginPath();
-      ctx.arc(x, y, ring, -0.25 + i * 0.35 + time * 0.08, Math.PI * 1.15 + i * 0.24 + time * 0.08);
-      ctx.stroke();
-    }
-
-    ctx.setLineDash([4, 12]);
-    ctx.strokeStyle = `rgba(${palette.cyan}, ${strength * 0.09})`;
-    ctx.beginPath();
-    ctx.moveTo(x - radius * 0.72, y + Math.sin(time * 2.2) * 8);
-    ctx.lineTo(x + radius * 0.72, y + Math.cos(time * 1.8) * 8);
-    ctx.moveTo(x + Math.sin(time * 1.7) * 8, y - radius * 0.52);
-    ctx.lineTo(x + Math.cos(time * 1.3) * 8, y + radius * 0.52);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const count = profile.cv ? 58 : 34;
-    for (let i = 0; i < count; i++) {
-      const seed = i + 17;
-      const angle = seed * 2.399 + time * (0.12 + hashUnit(seed) * 0.18);
-      const orbit = radius * (0.12 + hashUnit(seed * 2.7) * 0.7);
-      const wobble = Math.sin(time * 1.9 + seed) * 10;
-      const px = x + Math.cos(angle) * (orbit + wobble);
-      const py = y + Math.sin(angle) * (orbit * 0.58 + wobble * 0.4);
-      const dotAlpha = strength * (0.05 + hashUnit(seed * 5.1) * 0.11);
-      const size = 1 + hashUnit(seed * 7.3) * 1.8;
-      const tone = i % 9 === 0 ? palette.amber : i % 3 === 0 ? palette.cyan : palette.paper;
-      ctx.fillStyle = `rgba(${tone}, ${dotAlpha})`;
-      ctx.fillRect(px, py, size, size);
-    }
-
-    ctx.restore();
+    drawFieldWavefronts(time);
   }
 
   function updateMotionParticles(time, cycle, geometry) {
@@ -1023,7 +1127,6 @@
     state.logoDisplayDensity = lerp(state.logoDisplayDensity, state.logoDensity, logoEase);
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
-    drawPointerField(time);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
     drawCalibrationField(time, pose, cycle);
     drawLogoParticles(time, cycle);
@@ -1089,7 +1192,7 @@
   function setupPointerField() {
     if (staticMode || reduceMotion || coarsePointer) return;
     const hero = document.getElementById("hero") || canvas;
-    window.addEventListener("pointermove", (event) => {
+    const updateFromEvent = (event, type = "move") => {
       const rect = hero.getBoundingClientRect();
       const inside =
         event.clientX >= rect.left &&
@@ -1102,11 +1205,32 @@
         return;
       }
       const canvasRect = canvas.getBoundingClientRect();
-      state.pointer.targetX = clamp(event.clientX - canvasRect.left, 0, state.width);
-      state.pointer.targetY = clamp(event.clientY - canvasRect.top, 0, state.height);
+      const x = clamp(event.clientX - canvasRect.left, 0, state.width);
+      const y = clamp(event.clientY - canvasRect.top, 0, state.height);
+      const now = performance.now();
+      const travel = Math.hypot(x - state.pointer.lastWaveX, y - state.pointer.lastWaveY);
+      const cadence = now - state.pointer.lastWaveAt;
+      state.pointer.targetX = x;
+      state.pointer.targetY = y;
       state.pointer.targetStrength = 1;
       state.pointer.active = true;
-      state.pointer.lastMove = performance.now();
+      state.pointer.lastMove = now;
+
+      if (type === "press" || (travel > 76 && cadence > 105)) {
+        const velocityForce = type === "press" ? 1.25 : clamp(travel / 180, 0.34, 0.9);
+        pushFieldWave(x, y, velocityForce, now, type === "press" ? "press" : "drag");
+        state.pointer.lastWaveX = x;
+        state.pointer.lastWaveY = y;
+        state.pointer.lastWaveAt = now;
+      }
+    };
+
+    window.addEventListener("pointermove", (event) => {
+      updateFromEvent(event, "move");
+    }, { passive: true });
+
+    window.addEventListener("pointerdown", (event) => {
+      updateFromEvent(event, "press");
     }, { passive: true });
 
     window.addEventListener("pointerleave", () => {
