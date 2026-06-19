@@ -318,39 +318,9 @@
     pushLine(0, -0.1, 0, 0.45, 150);
     pushLine(-0.48, -0.2, -0.32, 0.1, 80);
     pushLine(0.48, -0.2, 0.32, 0.1, 80);
-    return targets;
-  }
-
-  function downsampleTargets(targets, count) {
-    if (targets.length <= count) return targets.slice();
-    const stride = targets.length / count;
-    return Array.from({ length: count }, (_, index) => targets[Math.floor(index * stride)]);
-  }
-
-  function sampleLogoTargets(image) {
-    const size = 256;
-    const offscreen = document.createElement("canvas");
-    offscreen.width = size;
-    offscreen.height = size;
-    const sampleCtx = offscreen.getContext("2d", { willReadFrequently: true });
-    if (!sampleCtx) return fallbackLogoTargets();
-
-    sampleCtx.clearRect(0, 0, size, size);
-    sampleCtx.drawImage(image, 0, 0, size, size);
-    const pixels = sampleCtx.getImageData(0, 0, size, size).data;
-    const targets = [];
-    const step = qualityName === "high" ? 5 : 7;
-    for (let y = 0; y < size; y += step) {
-      for (let x = 0; x < size; x += step) {
-        const i = (y * size + x) * 4;
-        const alpha = pixels[i + 3];
-        const luminance = pixels[i] + pixels[i + 1] + pixels[i + 2];
-        if (alpha > 40 && luminance > 80) {
-          targets.push([(x / size - 0.5) * 1.18, (y / size - 0.5) * 1.18]);
-        }
-      }
-    }
-    return targets.length > 260 ? downsampleTargets(targets, profile.logoSampleCount) : fallbackLogoTargets();
+    if (targets.length <= profile.logoSampleCount) return targets;
+    const stride = targets.length / profile.logoSampleCount;
+    return Array.from({ length: profile.logoSampleCount }, (_, index) => targets[Math.floor(index * stride)]);
   }
 
   function cycleInfo(elapsed) {
@@ -449,7 +419,10 @@
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
     state.firstPaint = true;
     buildParticles();
-    if (staticMode && heroStill) document.body.classList.add("static-hero");
+    if (staticMode && heroStill) {
+      if (!heroStill.src && heroStill.dataset.src) heroStill.src = heroStill.dataset.src;
+      document.body.classList.add("static-hero");
+    }
     render(performance.now(), true);
   }
 
@@ -649,20 +622,9 @@
     observer.observe(document.getElementById("hero") || canvas);
   }
 
-  function loadLogoTargets() {
+  function setupLogoTargets() {
     state.logoTargets = fallbackLogoTargets();
     refreshLogoTargets();
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => {
-      state.logoTargets = sampleLogoTargets(image);
-      refreshLogoTargets();
-    };
-    image.onerror = () => {
-      state.logoTargets = fallbackLogoTargets();
-      refreshLogoTargets();
-    };
-    image.src = "../assets/brand/maloutech-logo-white.png";
   }
 
   function introElements() {
@@ -721,83 +683,41 @@
     }
   }
 
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
-
-  function setupGsapMotion() {
+  function setupScrollReveals() {
     if (staticMode || reduceMotion) {
       showStaticMotion();
       return;
     }
-    const elapsed = (performance.now() - state.start) / 1000;
-    const gsap = window.gsap;
-    if (!gsap) {
-      scheduleNativeIntro();
+    scheduleNativeIntro();
+    const elements = [...document.querySelectorAll(".reveal, .paper-row")];
+    for (const element of elements) {
+      element.style.opacity = "0";
+      element.style.transform = "translateY(32px) scale(0.995)";
+    }
+    if (!("IntersectionObserver" in window)) {
+      for (const element of elements) {
+        element.style.opacity = "1";
+        element.style.transform = "translateY(0) scale(1)";
+      }
       return;
     }
-    const ScrollTrigger = window.ScrollTrigger;
-    if (ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
-    gsap.defaults({ ease: "power3.out" });
-
-    const revealAt = (selector, at) => {
-      gsap.to(selector, {
-        autoAlpha: 1,
-        y: 0,
-        duration: 0.85,
-        delay: Math.max(0, at - elapsed),
-        overwrite: true,
-      });
-    };
-    revealAt(".hero-title span", 2.8);
-    revealAt(".reveal-line", 3.02);
-    revealAt(".hero-readout", 3.18);
-    revealAt(".scroll-cue", 3.32);
-
-    if (ScrollTrigger) {
-      gsap.to(".hero-content", {
-        yPercent: -5,
-        autoAlpha: 0.5,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".hero",
-          start: "70% top",
-          end: "bottom top",
-          scrub: 0.9,
-        },
-      });
-      ScrollTrigger.batch(".reveal, .paper-row", {
-        start: "top 84%",
-        once: true,
-        onEnter: (batch) => {
-          gsap.fromTo(
-            batch,
-            { autoAlpha: 0, y: 32, scale: 0.995 },
-            { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.06, overwrite: true },
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          observer.unobserve(entry.target);
+          entry.target.animate(
+            [
+              { opacity: 0, transform: "translateY(32px) scale(0.995)" },
+              { opacity: 1, transform: "translateY(0) scale(1)" },
+            ],
+            { duration: 700, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
           );
-        },
-      });
-    }
-  }
-
-  function loadMotionRuntime() {
-    if (staticMode || reduceMotion) {
-      setupGsapMotion();
-      return;
-    }
-    window.setTimeout(() => {
-      loadScript("https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js")
-        .then(() => loadScript("https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js").catch(() => null))
-        .then(setupGsapMotion)
-        .catch(scheduleNativeIntro);
-    }, 120);
+        }
+      },
+      { rootMargin: "0px 0px -16% 0px", threshold: 0 },
+    );
+    for (const element of elements) observer.observe(element);
   }
 
   window.addEventListener("resize", () => {
@@ -811,9 +731,9 @@
   });
 
   setIntroInitial();
-  loadLogoTargets();
+  setupLogoTargets();
   resize();
   setupObserver();
-  loadMotionRuntime();
+  setupScrollReveals();
   if (staticMode) render(performance.now(), true);
 })();
