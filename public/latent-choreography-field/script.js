@@ -80,7 +80,6 @@
     logoDisplayLevel: 0,
     logoDensity: 0,
     logoDisplayDensity: 0,
-    lastLogoCommitCycle: -1,
     logoTargets: [],
     motionParticles: [],
     logoParticles: [],
@@ -348,33 +347,40 @@
   }
 
   function cycleInfo(elapsed) {
-    const loop = 18000;
+    const loop = 6400;
     const raw = (elapsed % loop) / loop;
     const cycleIndex = Math.floor(elapsed / loop);
     const firstCycle = cycleIndex === 0;
     const fieldOpen = firstCycle ? smooth(raw / 0.14) : 1;
-    const toLogo = smooth((raw - 0.31) / 0.17) * (1 - smooth((raw - 0.59) / 0.08));
-    const release = smooth((raw - 0.65) / 0.14);
+    const toLogo = smooth((raw - 0.37) / 0.2) * (1 - smooth((raw - 0.74) / 0.08));
+    const release = smooth((raw - 0.76) / 0.19);
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
-    const bodyReveal = firstCycle ? smooth((raw - 0.055) / 0.085) : 1;
-    const bodyFloor = bodyReveal > 0.98 ? 0.62 : 0;
-    const body = clamp(Math.max(bodyFloor, 1 - logoWeight * 0.48, release), 0, 1) * bodyReveal;
-    const depositWindow = smooth((raw - 0.33) / 0.1) * (1 - smooth((raw - 0.57) / 0.1));
-    const depositCommit = raw >= 0.57;
-    const logoTargetLevel = depositCommit ? 0.82 : 0;
-    const logoTargetDensity = depositCommit ? clamp(0.58 + cycleIndex * 0.24, 0, 1) : 0;
-    const shake = clamp(Math.max(1 - logoWeight, release), 0, 1);
-    const phrase = firstCycle && raw < 0.18
+    const bodyReveal = firstCycle ? smooth(raw / 0.14) : 1;
+    const sweepCalm = smooth((raw - 0.42) / 0.2);
+    const quietBody = lerp(0.62, 0.24, sweepCalm);
+    const body = clamp(Math.max(quietBody, 1 - logoWeight * 0.76, release * 0.98), 0, 1) * bodyReveal;
+    const depositWindow = smooth((raw - 0.39) / 0.16) * (1 - smooth((raw - 0.76) / 0.12));
+    const commitProgress = smooth((raw - 0.57) / 0.16);
+    const previousLevel = cycleIndex <= 0 ? 0 : clamp(0.62 + (cycleIndex - 1) * 0.13, 0, 1);
+    const nextLevel = clamp(0.62 + cycleIndex * 0.13, 0, 1);
+    const previousDensity = cycleIndex <= 0 ? 0 : clamp(0.55 + (cycleIndex - 1) * 0.15, 0, 1);
+    const nextDensity = clamp(0.55 + cycleIndex * 0.15, 0, 1);
+    const logoTargetLevel = lerp(previousLevel, nextLevel, commitProgress);
+    const logoTargetDensity = lerp(previousDensity, nextDensity, commitProgress);
+    const shake = clamp((1 - sweepCalm) * 0.95 + release * 0.7, 0, 1);
+    const phrase = firstCycle && raw < 0.14
       ? "calibrate"
-      : raw < 0.31
-        ? "perform"
-      : raw < 0.57
-        ? "condense"
-        : raw < 0.65
-          ? "mark"
-          : raw < 0.88
-            ? "emit"
-            : "reform";
+      : raw < 0.14
+        ? "form"
+        : raw < 0.37
+          ? "dance"
+          : raw < 0.61
+            ? "sweep"
+            : raw < 0.76
+              ? "commit"
+              : raw < 0.96
+                ? "emit"
+                : "form";
     return {
       raw,
       cycleIndex,
@@ -386,7 +392,6 @@
       bodyReveal,
       logoTargetLevel,
       logoTargetDensity,
-      depositCommit,
       depositWindow,
       shake,
       phrase,
@@ -523,11 +528,11 @@
       const lift = Math.cos(phase * 0.72) * 5 * cycle.shake;
       const bodyX = targetBody[0] + sway;
       const bodyY = targetBody[1] + lift;
-      const towardLogo = clamp((logoWeight - particle.delay) * 1.25, 0, 1);
+      const towardLogo = clamp((logoWeight - particle.delay) * 1.45, 0, 1);
       const targetX = lerp(bodyX, particle.logoX, towardLogo);
       const targetY = lerp(bodyY, particle.logoY, towardLogo);
-      const pull = 0.07 + towardLogo * 0.055 + release * 0.035;
-      const drift = (1 - towardLogo) * 0.18;
+      const pull = 0.085 + towardLogo * 0.075 + release * 0.04;
+      const drift = (1 - towardLogo) * 0.14;
       const flowX = Math.sin(time * 0.55 + particle.seed) * drift + release * Math.cos(particle.seed) * 0.48;
       const flowY = Math.cos(time * 0.42 + particle.seed * 0.7) * drift + release * Math.sin(particle.seed) * 0.38;
       particle.vx = particle.vx * 0.82 + (targetX - particle.x) * pull + flowX;
@@ -600,9 +605,9 @@
     ctx.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.motionLimit; i++) {
       const particle = state.motionParticles[i];
-      const towardLogo = clamp((cycle.logoWeight - particle.delay) * 1.25, 0, 1);
+      const towardLogo = clamp((cycle.logoWeight - particle.delay) * 1.45, 0, 1);
       const transit = Math.sin(Math.PI * towardLogo);
-      const bodyPresence = cycle.body * (1 - cycle.logoWeight * 0.12);
+      const bodyPresence = cycle.body * (1 - cycle.logoWeight * 0.28);
       const transferPresence = cycle.depositWindow * (0.16 + transit * 0.7);
       const releasePresence = cycle.release * (0.12 + (1 - towardLogo) * 0.3);
       const alpha = particle.alpha * (0.03 * cycle.bodyReveal + bodyPresence * 1.05 + transferPresence + releasePresence);
@@ -619,30 +624,36 @@
     const logoDensity = state.logoDisplayDensity;
     if (logoAlpha <= 0.002 || logoDensity <= 0.002) return;
     const center = logoPoint([0, 0], 0);
-    const cloudMotion = 1.3 + logoDensity * 3 + cycle.depositWindow * 1.1;
-    const logoGlow = 1.02;
+    const precision = smooth((logoDensity - 0.34) / 0.54);
+    const cloudMotion = lerp(2.75, 0.58, precision) + cycle.depositWindow * 0.52;
+    const logoGlow = 0.92 + logoDensity * 0.22;
+    const breath = 0.5 + 0.5 * Math.sin(time * 2.15);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.logoLimit; i++) {
       const particle = state.logoParticles[i];
-      if (particle.reveal > logoDensity) continue;
+      const revealAlpha = smooth((logoDensity - particle.reveal) / 0.12);
+      if (revealAlpha <= 0.006) continue;
       const shimmer = 0.86 + 0.14 * Math.sin(time * 1.2 + particle.seed);
       const dx = particle.x - center[0];
       const dy = particle.y - center[1];
       const radius = Math.hypot(dx, dy) || 1;
-      const orbit = Math.min(5.4, radius * (0.012 + logoDensity * 0.01));
+      const orbit = Math.min(4.4, radius * lerp(0.018, 0.006, precision));
       const orbitX = (-dy / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
       const orbitY = (dx / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
+      const breathe = Math.sin(time * 1.34 + radius * 0.018 + particle.seed * 0.04) * (0.42 + logoDensity * 0.62);
+      const breatheX = (dx / radius) * breathe;
+      const breatheY = (dy / radius) * breathe;
       const jitterX =
         Math.sin(time * 1.16 + particle.seed) * cloudMotion +
         Math.sin(time * 2.1 + particle.seed * 0.37) * cloudMotion * 0.42;
       const jitterY =
         Math.cos(time * 0.94 + particle.seed * 0.72) * cloudMotion +
         Math.cos(time * 1.8 + particle.seed * 0.51) * cloudMotion * 0.34;
-      const alpha = logoAlpha * shimmer * logoGlow * (particle.tone === palette.paper ? 1.04 : 1.32);
-      const size = particle.size * (1 + state.logoDisplayLevel * 0.68);
+      const alpha = logoAlpha * revealAlpha * shimmer * logoGlow * (0.92 + breath * 0.14) * (particle.tone === palette.paper ? 1.02 : 1.24);
+      const size = particle.size * (0.9 + state.logoDisplayLevel * 0.42 + breath * 0.08);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
-      ctx.fillRect(particle.x + jitterX + orbitX, particle.y + jitterY + orbitY, size, size);
+      ctx.fillRect(particle.x + jitterX + orbitX + breatheX, particle.y + jitterY + orbitY + breatheY, size, size);
     }
     ctx.restore();
   }
@@ -906,20 +917,18 @@
   }
 
   function render(now, force = false) {
-    const elapsed = staticMode ? 13200 : now - state.start;
+    const elapsed = staticMode ? 4700 : now - state.start;
     const time = elapsed / 1000;
     const cycle = cycleInfo(elapsed);
-    const poseTime = time * 0.2 + Math.sin(time * 0.26) * 0.08;
+    const poseTime = time * 0.34 + Math.sin(time * 0.34) * 0.08;
     const pose = poseGeometry(currentPose(poseTime));
     const previousPose = poseGeometry(currentPose(poseTime - 0.16));
 
-    if (cycle.depositCommit && state.lastLogoCommitCycle !== cycle.cycleIndex) {
-      state.logoLevel = Math.max(state.logoLevel, cycle.logoTargetLevel);
-      state.logoDensity = Math.max(state.logoDensity, cycle.logoTargetDensity);
-      state.lastLogoCommitCycle = cycle.cycleIndex;
-    }
-    state.logoDisplayLevel = state.logoLevel;
-    state.logoDisplayDensity = state.logoDensity;
+    state.logoLevel = Math.max(state.logoLevel, cycle.logoTargetLevel);
+    state.logoDensity = Math.max(state.logoDensity, cycle.logoTargetDensity);
+    const logoEase = staticMode ? 1 : 0.105 + cycle.depositWindow * 0.035;
+    state.logoDisplayLevel = lerp(state.logoDisplayLevel, state.logoLevel, logoEase);
+    state.logoDisplayDensity = lerp(state.logoDisplayDensity, state.logoDensity, logoEase);
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
