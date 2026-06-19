@@ -539,8 +539,8 @@
       x,
       y,
       start: (now - state.start) / 1000,
-      life: type === "press" ? 1.55 : 0.95,
-      force: clamp(force, 0.16, 0.95),
+      life: type === "press" ? 2.05 : 1.28,
+      force: clamp(force, 0.12, 0.82),
       spin: hashUnit(x * 0.037 + y * 0.021 + pointer.waveId) > 0.5 ? 1 : -1,
       type,
     });
@@ -563,16 +563,16 @@
       const distance = Math.hypot(vx, vy) || 1;
       const nx = vx / distance;
       const ny = vy / distance;
-      const wide = pointer.strength / (1 + Math.pow(distance / 340, 2));
-      const core = Math.exp(-(distance * distance) / (190 * 190)) * pointer.strength;
-      const pull = wide * 46 + core * 108;
-      const spiral = Math.sin(time * 1.2 + distance * 0.012) * core * 10;
+      const wide = pointer.strength / (1 + Math.pow(distance / 470, 2));
+      const core = Math.exp(-(distance * distance) / (300 * 300)) * pointer.strength;
+      const pull = wide * 28 + core * 44;
+      const spiral = Math.sin(time * 0.82 + distance * 0.008) * core * 7;
       dx -= nx * pull;
       dy -= ny * (pull * 0.64);
       dx += -ny * spiral;
       dy += nx * spiral * 0.45;
-      z += core * 1.4 + wide * 0.3;
-      energy += core * 0.9 + wide * 0.28;
+      z += core * 0.86 + wide * 0.24;
+      energy += core * 0.62 + wide * 0.22;
     }
 
     for (const wave of pointer.waves) {
@@ -582,19 +582,19 @@
       const vx = x - wave.x;
       const vy = y - wave.y;
       const distance = Math.hypot(vx, vy) || 1;
-      const radius = diagonal * (0.02 + progress * 0.62);
-      const bandWidth = 34 + progress * 68;
+      const radius = diagonal * (0.012 + progress * 0.56);
+      const bandWidth = 72 + progress * 146;
       const band = Math.max(0, 1 - Math.abs(distance - radius) / bandWidth);
       if (band <= 0) continue;
-      const falloff = Math.pow(1 - progress, 1.55);
-      const phase = Math.sin((distance - radius) * 0.075 - progress * Math.PI);
+      const falloff = Math.pow(1 - progress, 0.94);
+      const phase = Math.sin((distance - radius) * 0.042 - progress * Math.PI * 0.74);
       const pulse = phase * smooth(band) * falloff * wave.force;
       const nx = vx / distance;
       const ny = vy / distance;
-      dx += nx * pulse * 54;
-      dy += ny * pulse * 32;
-      z += Math.abs(pulse) * 0.34;
-      energy += Math.abs(pulse) * 0.42;
+      dx += nx * pulse * 38;
+      dy += ny * pulse * 24;
+      z += Math.abs(pulse) * 0.24;
+      energy += Math.abs(pulse) * 0.32;
     }
 
     return { dx, dy, z, energy: clamp(energy, 0, 1.5) };
@@ -622,12 +622,12 @@
       if (age < 0 || age > wave.life) continue;
       const progress = clamp(age / wave.life, 0, 1);
       const distance = Math.hypot(x - wave.x, y - wave.y);
-      const radius = diagonal * (0.02 + progress * 0.62);
-      const bandWidth = 42 + progress * 76;
+      const radius = diagonal * (0.012 + progress * 0.56);
+      const bandWidth = 84 + progress * 156;
       const band = Math.max(0, 1 - Math.abs(distance - radius) / bandWidth);
       if (band <= 0) continue;
-      const falloff = Math.pow(1 - progress, 1.45);
-      const phase = Math.sin((distance - radius) * 0.075 - progress * Math.PI);
+      const falloff = Math.pow(1 - progress, 0.98);
+      const phase = Math.sin((distance - radius) * 0.042 - progress * Math.PI * 0.74);
       strain += smooth(band) * falloff * wave.force * (0.45 + Math.abs(phase) * 0.55);
     }
     return clamp(strain, 0, 1);
@@ -841,8 +841,8 @@
     const center = logoPoint([0, 0], 0);
     const precision = smooth((logoDensity - 0.34) / 0.54);
     const pointer = state.pointer;
-    const spring = 0.07 + precision * 0.066;
-    const damping = 0.8 - precision * 0.035;
+    const spring = 0.046 + precision * 0.052;
+    const damping = 0.86 - precision * 0.026;
     const livingRange = lerp(13.5, 4.6, precision) * (0.62 + logoAlpha * 0.62);
 
     for (let i = 0; i < state.logoLimit; i++) {
@@ -870,16 +870,16 @@
         const vx = particle.x - pointer.x;
         const vy = particle.y - pointer.y;
         const distance = Math.hypot(vx, vy) || 1;
-        const pull = pointer.strength / (1 + Math.pow(distance / 260, 2));
+        const pull = pointer.strength / (1 + Math.pow(distance / 390, 2));
         const pnx = vx / distance;
         const pny = vy / distance;
-        homeX -= pnx * pull * 22;
-        homeY -= pny * pull * 15;
-        kickX -= pnx * pull * 4.2;
-        kickY -= pny * pull * 3.1;
-        kickX += -pny * pull * 1.05 * Math.sin(time + particle.seed);
-        kickY += pnx * pull * 0.72 * Math.sin(time + particle.seed);
-        energy += pull * 1.2;
+        homeX -= pnx * pull * 13;
+        homeY -= pny * pull * 9;
+        kickX -= pnx * pull * 2.15;
+        kickY -= pny * pull * 1.55;
+        kickX += -pny * pull * 1.2 * Math.sin(time * 0.78 + particle.seed);
+        kickY += pnx * pull * 0.82 * Math.sin(time * 0.78 + particle.seed);
+        energy += pull * 0.86;
       }
 
       for (const wave of pointer.waves) {
@@ -890,20 +890,20 @@
         const vy = particle.y - wave.y;
         const distance = Math.hypot(vx, vy) || 1;
         const diagonal = Math.hypot(state.width, state.height);
-        const radiusAtWave = diagonal * (0.02 + progress * 0.62);
-        const bandWidth = 64 + progress * 96;
+        const radiusAtWave = diagonal * (0.012 + progress * 0.56);
+        const bandWidth = 112 + progress * 172;
         const band = Math.max(0, 1 - Math.abs(distance - radiusAtWave) / bandWidth);
         if (band <= 0) continue;
-        const falloff = Math.pow(1 - progress, 1.25);
-        const phaseWave = Math.sin((distance - radiusAtWave) * 0.07 - progress * Math.PI);
+        const falloff = Math.pow(1 - progress, 0.92);
+        const phaseWave = Math.sin((distance - radiusAtWave) * 0.038 - progress * Math.PI * 0.72);
         const waveForce = phaseWave * smooth(band) * falloff * wave.force;
         const wnx = vx / distance;
         const wny = vy / distance;
-        kickX += wnx * waveForce * 9.2;
-        kickY += wny * waveForce * 7.4;
-        homeX += wnx * Math.abs(waveForce) * 8.4;
-        homeY += wny * Math.abs(waveForce) * 6.8;
-        energy += Math.abs(waveForce) * 1.7;
+        kickX += wnx * waveForce * 6.2;
+        kickY += wny * waveForce * 4.8;
+        homeX += wnx * Math.abs(waveForce) * 11.5;
+        homeY += wny * Math.abs(waveForce) * 8.7;
+        energy += Math.abs(waveForce) * 1.24;
       }
 
       particle.vx = (particle.vx + (homeX - particle.x) * spring + kickX) * damping;
