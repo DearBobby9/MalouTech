@@ -30,6 +30,7 @@
       motionCount: 420,
       logoCount: 720,
       logoSampleCount: 900,
+      streamCount: 120,
       fps: 50,
       cv: false,
       gridGap: 150,
@@ -39,6 +40,7 @@
       motionCount: 720,
       logoCount: 1500,
       logoSampleCount: 1500,
+      streamCount: 260,
       fps: 60,
       cv: true,
       gridGap: 128,
@@ -48,6 +50,7 @@
       motionCount: 980,
       logoCount: 1500,
       logoSampleCount: 1500,
+      streamCount: 360,
       fps: 60,
       cv: true,
       gridGap: 112,
@@ -76,11 +79,13 @@
     slowFrames: 0,
     motionLimit: profile.motionCount,
     logoLimit: profile.logoCount,
+    streamLimit: profile.streamCount,
     logoLevel: 0,
     logoDisplayLevel: 0,
     logoTargets: [],
     motionParticles: [],
     logoParticles: [],
+    streamParticles: [],
     phrase: "dance",
     resizeTimer: 0,
   };
@@ -344,24 +349,45 @@
     const loop = 18000;
     const raw = (elapsed % loop) / loop;
     const cycleIndex = Math.floor(elapsed / loop);
+    const firstCycle = cycleIndex === 0;
+    const fieldOpen = firstCycle ? smooth(raw / 0.18) : 1;
     const toLogo = smooth((raw - 0.38) / 0.2) * (1 - smooth((raw - 0.68) / 0.08));
     const release = smooth((raw - 0.72) / 0.16);
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
-    const body = clamp(Math.max(1 - logoWeight, release), 0, 1);
+    const bodyReveal = firstCycle ? smooth((raw - 0.14) / 0.14) : smooth(raw / 0.08);
+    const body = clamp(Math.max(1 - logoWeight, release), 0, 1) * bodyReveal;
     const depositGrowth = raw < 0.38 ? 0 : raw < 0.68 ? smooth((raw - 0.38) / 0.3) : 1;
     const depositWindow = smooth((raw - 0.4) / 0.12) * (1 - smooth((raw - 0.66) / 0.12));
     const logoTargetLevel = clamp(depositGrowth * (0.72 + cycleIndex * 0.08), 0, 1);
     const shake = clamp(Math.max(1 - logoWeight, release), 0, 1);
-    const phrase = raw < 0.4
-      ? "dance"
+    const stream = clamp(depositWindow + release * 0.9 + (1 - firstCycle) * 0.08, 0, 1);
+    const phrase = firstCycle && raw < 0.2
+      ? "calibrate"
+      : raw < 0.4
+        ? "perform"
       : raw < 0.66
-        ? "deposit"
+        ? "condense"
         : raw < 0.72
           ? "mark"
           : raw < 0.92
             ? "emit"
             : "reform";
-    return { raw, cycleIndex, logoWeight, release, body, logoTargetLevel, depositGrowth, depositWindow, shake, phrase };
+    return {
+      raw,
+      cycleIndex,
+      firstCycle,
+      fieldOpen,
+      logoWeight,
+      release,
+      body,
+      bodyReveal,
+      logoTargetLevel,
+      depositGrowth,
+      depositWindow,
+      shake,
+      stream,
+      phrase,
+    };
   }
 
   function refreshLogoTargets() {
@@ -384,6 +410,7 @@
     const mobileScale = state.width < 720 ? 0.68 : 1;
     const motionCount = Math.max(180, Math.round(profile.motionCount * mobileScale));
     const logoCount = Math.max(100, Math.round(profile.logoCount * mobileScale));
+    const streamCount = Math.max(70, Math.round(profile.streamCount * mobileScale));
     const seedPose = poseGeometry(currentPose(0));
 
     state.motionLimit = motionCount;
@@ -423,6 +450,17 @@
       y: 0,
     }));
     state.logoLimit = logoCount;
+    state.streamParticles = Array.from({ length: streamCount }, (_, id) => ({
+      id,
+      seed: rand() * 1000,
+      lane: rand() - 0.5,
+      speed: 0.08 + rand() * 0.12,
+      phase: rand(),
+      tone: rand() < 0.55 ? palette.cyan : rand() < 0.84 ? palette.paper : palette.amber,
+      size: 0.7 + rand() * 1.2,
+      alpha: 0.18 + rand() * 0.28,
+    }));
+    state.streamLimit = streamCount;
     refreshLogoTargets();
   }
 
@@ -482,6 +520,155 @@
     ctx.restore();
   }
 
+  function logoCenter() {
+    return logoPoint([0, 0]);
+  }
+
+  function bodyAnchor(geometry) {
+    const spine = geometry.points.spine;
+    const neck = geometry.points.neck;
+    const lHip = geometry.points.lHip;
+    const rHip = geometry.points.rHip;
+    return [
+      (spine[0] * 1.4 + neck[0] + lHip[0] * 0.35 + rHip[0] * 0.35) / 3.1,
+      (spine[1] * 1.4 + neck[1] + lHip[1] * 0.35 + rHip[1] * 0.35) / 3.1,
+    ];
+  }
+
+  function cubic(a, b, c, d, t) {
+    const mt = 1 - t;
+    return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
+  }
+
+  function cubicDerivative(a, b, c, d, t) {
+    const mt = 1 - t;
+    return 3 * mt * mt * (b - a) + 6 * mt * t * (c - b) + 3 * t * t * (d - c);
+  }
+
+  function flowPoint(t, geometry, lane = 0, time = 0) {
+    const start = logoCenter();
+    const end = bodyAnchor(geometry);
+    const w = state.width;
+    const h = state.height;
+    const lift = Math.sin(time * 0.38 + lane * 2.7) * h * 0.025;
+    const c1 = [start[0] + w * 0.18, start[1] - h * 0.18 + lift];
+    const c2 = [end[0] - w * 0.18, end[1] + h * 0.14 - lift];
+    const x = cubic(start[0], c1[0], c2[0], end[0], t);
+    const y = cubic(start[1], c1[1], c2[1], end[1], t);
+    const dx = cubicDerivative(start[0], c1[0], c2[0], end[0], t);
+    const dy = cubicDerivative(start[1], c1[1], c2[1], end[1], t);
+    const length = Math.hypot(dx, dy) || 1;
+    const offset = lane * Math.min(w, h) * 0.035;
+    return [x + (-dy / length) * offset, y + (dx / length) * offset];
+  }
+
+  function drawCaptureVolume(time, geometry, cycle) {
+    if (!profile.cv && cycle.fieldOpen < 0.96) return;
+    const open = cycle.fieldOpen;
+    if (open <= 0.01) return;
+    const w = state.width;
+    const h = state.height;
+    const anchor = bodyAnchor(geometry);
+    const size = Math.min(w, h);
+    const boxW = size * (state.width < 720 ? 0.46 : 0.35) * open;
+    const boxH = size * (state.width < 720 ? 0.66 : 0.54) * open;
+    const cx = anchor[0] + Math.sin(time * 0.25) * 5;
+    const cy = anchor[1] + h * 0.025 + Math.cos(time * 0.21) * 4;
+    const skewX = size * 0.08 * open;
+    const skewY = -size * 0.04 * open;
+    const left = cx - boxW * 0.52;
+    const right = cx + boxW * 0.52;
+    const top = cy - boxH * 0.54;
+    const bottom = cy + boxH * 0.54;
+    const alpha = (0.12 + cycle.body * 0.14 + cycle.stream * 0.1) * open;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha})`;
+    ctx.lineWidth = 1;
+
+    const front = [[left, top], [right, top], [right, bottom], [left, bottom]];
+    const back = front.map(([x, y]) => [x + skewX, y + skewY]);
+    for (const rect of [back, front]) {
+      ctx.beginPath();
+      ctx.moveTo(rect[0][0], rect[0][1]);
+      for (let i = 1; i < rect.length; i++) ctx.lineTo(rect[i][0], rect[i][1]);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(front[i][0], front[i][1]);
+      ctx.lineTo(back[i][0], back[i][1]);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = `rgba(${palette.paper}, ${alpha * 0.22})`;
+    ctx.setLineDash([5, 13]);
+    for (let i = 1; i < 5; i++) {
+      const t = i / 5;
+      const y = lerp(top, bottom, t);
+      const drift = Math.sin(time * 0.8 + i) * 4;
+      ctx.beginPath();
+      ctx.moveTo(left + drift, y);
+      ctx.lineTo(right + drift, y + skewY * 0.16);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    if (state.width >= 760) {
+      ctx.font = "10px SFMono-Regular, Menlo, Consolas, monospace";
+      ctx.fillStyle = `rgba(${palette.cyan}, ${alpha * 0.86})`;
+      ctx.fillText("SIGNAL", left + 10, top + 18);
+      ctx.fillStyle = `rgba(${palette.paper}, ${alpha * 0.62})`;
+      ctx.fillText("MOTION MODEL", right - 104, bottom - 12);
+      ctx.fillStyle = `rgba(${palette.amber}, ${alpha * 0.76})`;
+      ctx.fillText("XR SPACE", back[1][0] - 76, back[1][1] - 10);
+    }
+    ctx.restore();
+  }
+
+  function drawFlowManifold(time, cycle, geometry) {
+    const pathAlpha = clamp(cycle.stream * 0.46 + (cycle.fieldOpen - 0.55) * 0.12, 0, 0.58);
+    if (pathAlpha <= 0.01) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (let lane = -2; lane <= 2; lane++) {
+      const laneAlpha = pathAlpha * (lane === 0 ? 0.9 : 0.42);
+      ctx.strokeStyle = lane === 0
+        ? `rgba(${palette.cyan}, ${laneAlpha})`
+        : `rgba(${palette.paper}, ${laneAlpha})`;
+      ctx.lineWidth = lane === 0 ? 1.4 : 0.8;
+      ctx.beginPath();
+      for (let step = 0; step <= 32; step++) {
+        const t = step / 32;
+        const p = flowPoint(t, geometry, lane * 0.34, time);
+        if (step === 0) ctx.moveTo(p[0], p[1]);
+        else ctx.lineTo(p[0], p[1]);
+      }
+      ctx.stroke();
+    }
+
+    const directionToBody = cycle.release > cycle.logoWeight || cycle.phrase === "reform";
+    const particleAlpha = clamp(cycle.stream * 1.12, 0, 1);
+    for (let i = 0; i < state.streamLimit; i++) {
+      const particle = state.streamParticles[i];
+      const phase = (particle.phase + time * particle.speed) % 1;
+      const t = directionToBody ? phase : 1 - phase;
+      const p = flowPoint(t, geometry, particle.lane, time + particle.seed);
+      const endFade = smooth(t / 0.08) * (1 - smooth((t - 0.92) / 0.08));
+      const alpha = particle.alpha * particleAlpha * endFade;
+      if (alpha <= 0.01) continue;
+      ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
+      const size = particle.size * (1 + cycle.stream * 0.5);
+      ctx.fillRect(p[0], p[1], size, size);
+    }
+    ctx.restore();
+  }
+
   function updateMotionParticles(time, cycle, geometry) {
     const release = cycle.release;
     const logoWeight = cycle.logoWeight;
@@ -511,7 +698,7 @@
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const logoAssimilation = Math.pow(1 - cycle.logoWeight, 2.2);
-    const bodyAlpha = (0.16 + cycle.body * 0.58) * logoAssimilation + cycle.release * 0.14;
+    const bodyAlpha = (0.02 + cycle.body * 0.72) * logoAssimilation + cycle.release * 0.14;
     for (let i = 0; i < state.motionLimit; i++) {
       const particle = state.motionParticles[i];
       const alpha = particle.alpha * bodyAlpha;
@@ -683,6 +870,8 @@
     }
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
+    drawCaptureVolume(time, pose, cycle);
+    drawFlowManifold(time, cycle, pose);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
     drawLogoParticles(time, cycle);
     drawMotionParticles(cycle);
@@ -695,10 +884,15 @@
     else state.slowFrames = Math.max(0, state.slowFrames - 1);
     if (
       state.slowFrames > 18 &&
-      (state.motionLimit > profiles.low.motionCount || state.logoLimit > profiles.low.logoCount)
+      (
+        state.motionLimit > profiles.low.motionCount ||
+        state.logoLimit > profiles.low.logoCount ||
+        state.streamLimit > profiles.low.streamCount
+      )
     ) {
       state.motionLimit = Math.max(profiles.low.motionCount, Math.floor(state.motionLimit * 0.78));
       state.logoLimit = Math.max(profiles.low.logoCount, Math.floor(state.logoLimit * 0.82));
+      state.streamLimit = Math.max(profiles.low.streamCount, Math.floor(state.streamLimit * 0.82));
       state.slowFrames = 0;
     }
   }
