@@ -11,9 +11,10 @@ const LOCAL_URL =
   "https://dearbobby9.github.io/MalouTech/river-ai-replica/?riverStatic&pixelVerify=1";
 const PORT = Number(process.env.RIVER_CDP_PORT || 9260);
 const VIEWPORT = { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false };
-const SCROLL_POINTS = [0, 1050, 2100, 3150, 3941];
+const SCROLL_STEP = Number(process.env.RIVER_SCROLL_STEP || 550);
 const FULL_MAE_LIMIT = Number(process.env.RIVER_FULL_MAE_LIMIT || 0.75);
 const CENTER_MAE_LIMIT = Number(process.env.RIVER_CENTER_MAE_LIMIT || 0.75);
+const FULL_PAGE_MAE_LIMIT = Number(process.env.RIVER_FULL_PAGE_MAE_LIMIT || 0.75);
 
 function chromePath() {
   const candidates = [
@@ -127,6 +128,40 @@ async function captureAt(page, y, outputBase) {
   return info.result.value;
 }
 
+async function pageInfo(page) {
+  const info = await page.send("Runtime.evaluate", {
+    expression: `(() => {
+      const de = document.documentElement;
+      const canvas = document.querySelector("#asciiRiver");
+      const gl = canvas && (canvas.getContext("webgl2") || canvas.getContext("webgl"));
+      return {
+        scrollY,
+        bodyClass: document.body.className,
+        doc: [de.clientWidth, de.clientHeight, de.scrollWidth, de.scrollHeight],
+        maxScrollY: Math.max(0, de.scrollHeight - innerHeight),
+        glError: gl ? gl.getError() : null,
+        title: document.title
+      };
+    })()`,
+    returnByValue: true,
+  });
+  return info.result.value;
+}
+
+async function captureFullPage(page, outputBase) {
+  await page.send("Runtime.evaluate", { expression: "window.scrollTo(0, 0); undefined;" });
+  await wait(850);
+  const info = await pageInfo(page);
+  const screenshot = await page.send("Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+    captureBeyondViewport: true,
+  });
+  writeFileSync(`${outputBase}.png`, Buffer.from(screenshot.data, "base64"));
+  writeFileSync(`${outputBase}.json`, JSON.stringify(info, null, 2));
+  return info;
+}
+
 function runPython(args) {
   return new Promise((resolve, reject) => {
     execFile("python3", args, { encoding: "utf8" }, (error, stdout, stderr) => {
@@ -170,6 +205,43 @@ print(json.dumps(out))
   }
 }
 
+async function compareFullPageImages(a, b) {
+  const script = `
+from PIL import Image, ImageChops, ImageStat
+import json, sys
+a = Image.open(sys.argv[1]).convert("RGB")
+b = Image.open(sys.argv[2]).convert("RGB")
+w = min(a.width, b.width)
+h = min(a.height, b.height)
+regions = {
+  "full_page": (0, 0, w, h),
+  "page_without_scrollbar": (0, 0, min(1425, w), h),
+}
+out = {"size": [a.width, a.height, b.width, b.height]}
+for name, box in regions.items():
+  diff = ImageChops.difference(a.crop(box), b.crop(box))
+  stat = ImageStat.Stat(diff)
+  out[name] = {
+    "mae": sum(stat.mean) / 3.0,
+    "rms": sum(stat.rms) / 3.0,
+  }
+print(json.dumps(out))
+`;
+  const scriptPath = join(tmpdir(), `river-full-compare-${process.pid}.py`);
+  writeFileSync(scriptPath, script);
+  try {
+    return JSON.parse(await runPython([scriptPath, a, b]));
+  } finally {
+    rmSync(scriptPath, { force: true });
+  }
+}
+
+function scrollPoints(maxScrollY) {
+  const points = new Set([0, maxScrollY]);
+  for (let y = 0; y < maxScrollY; y += SCROLL_STEP) points.add(y);
+  return [...points].sort((a, b) => a - b);
+}
+
 async function main() {
   const profile = mkdtempSync(join(tmpdir(), "river-pixel-cdp-"));
   const outDir = mkdtempSync(join(tmpdir(), "river-pixel-out-"));
@@ -191,8 +263,30 @@ async function main() {
     const local = await openPage(LOCAL_URL);
     await wait(7600);
 
+    const remoteFullBase = join(outDir, "remote-full-page");
+    const localFullBase = join(outDir, "local-full-page");
+    const remotePageInfo = await captureFullPage(remote, remoteFullBase);
+    const localPageInfo = await captureFullPage(local, localFullBase);
+    const fullPageDiff = await compareFullPageImages(
+      `${remoteFullBase}.png`,
+      `${localFullBase}.png`,
+    );
+    const fullPageMae = fullPageDiff.page_without_scrollbar.mae;
+    if (
+      remotePageInfo.glError !== 0 ||
+      localPageInfo.glError !== 0 ||
+      fullPageMae > FULL_PAGE_MAE_LIMIT
+    ) {
+      failed = true;
+    }
+    console.log(
+      `fullPage size=${fullPageDiff.size.join("/")} mae=${fullPageMae.toFixed(4)} gl=${remotePageInfo.glError}/${localPageInfo.glError}`,
+    );
+
+    const maxScrollY = Math.min(remotePageInfo.maxScrollY, localPageInfo.maxScrollY);
+    const points = scrollPoints(maxScrollY);
     const rows = [];
-    for (const y of SCROLL_POINTS) {
+    for (const y of points) {
       const remoteBase = join(outDir, `remote-${y}`);
       const localBase = join(outDir, `local-${y}`);
       const remoteInfo = await captureAt(remote, y, remoteBase);

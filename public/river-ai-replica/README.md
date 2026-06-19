@@ -40,4 +40,4 @@ Run the visual parity check against the live River page and the deployed GitHub 
 npm run verify:river
 ```
 
-The script compares the static hero mode and the main downstream scroll positions. It reports mean absolute error for each viewport and fails when full-frame or center-region MAE exceeds `0.75`.
+The script compares the static hero mode with a full-page screenshot plus dense downstream scroll samples. It reports mean absolute error for each viewport and fails when full-frame, full-page, or center-region MAE exceeds `0.75`.

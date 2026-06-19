@@ -50,4 +50,4 @@ This folder keeps the River snapshot isolated under `public/river-ai-replica/`. 
 
 ## Verification
 
-`npm run verify:river` captures `river.ai` and the deployed GitHub Pages study copy at matching viewport and scroll positions. The default comparison uses `?riverStatic` because the live hero shader and footer water are time-based. Current threshold: full-frame MAE <= `0.75`, center-region MAE <= `0.75`.
+`npm run verify:river` captures `river.ai` and the deployed GitHub Pages study copy at a matching viewport. It compares one full-page screenshot plus dense scroll samples. The default comparison uses `?riverStatic` because the live hero shader and footer water are time-based. Current threshold: full-page MAE <= `0.75`, full-frame MAE <= `0.75`, center-region MAE <= `0.75`.
