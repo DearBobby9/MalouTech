@@ -78,6 +78,8 @@
     logoLimit: profile.logoCount,
     logoLevel: 0,
     logoDisplayLevel: 0,
+    logoDensity: 0,
+    logoDisplayDensity: 0,
     logoTargets: [],
     motionParticles: [],
     logoParticles: [],
@@ -349,11 +351,13 @@
     const toLogo = smooth((raw - 0.38) / 0.2) * (1 - smooth((raw - 0.68) / 0.08));
     const release = smooth((raw - 0.72) / 0.16);
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
-    const bodyReveal = firstCycle ? smooth((raw - 0.14) / 0.14) : smooth(raw / 0.08);
-    const body = clamp(Math.max(1 - logoWeight, release), 0, 1) * bodyReveal;
+    const bodyReveal = firstCycle ? smooth((raw - 0.14) / 0.14) : 1;
+    const bodyFloor = bodyReveal > 0.98 ? 0.48 : 0;
+    const body = clamp(Math.max(bodyFloor, 1 - logoWeight * 0.64, release), 0, 1) * bodyReveal;
     const depositGrowth = raw < 0.38 ? 0 : raw < 0.68 ? smooth((raw - 0.38) / 0.3) : 1;
     const depositWindow = smooth((raw - 0.4) / 0.12) * (1 - smooth((raw - 0.66) / 0.12));
     const logoTargetLevel = clamp(depositGrowth * (0.72 + cycleIndex * 0.08), 0, 1);
+    const logoTargetDensity = clamp(depositGrowth * (0.45 + cycleIndex * 0.18), 0, 1);
     const shake = clamp(Math.max(1 - logoWeight, release), 0, 1);
     const phrase = firstCycle && raw < 0.2
       ? "calibrate"
@@ -376,6 +380,7 @@
       body,
       bodyReveal,
       logoTargetLevel,
+      logoTargetDensity,
       depositGrowth,
       depositWindow,
       shake,
@@ -436,6 +441,7 @@
       logoIndex: Math.floor((id / logoCount) * Math.max(1, state.logoTargets.length)) + Math.floor(rand() * 5),
       logoJitter: (rand() - 0.5) * 1.2,
       seed: rand() * 1000,
+      reveal: rand(),
       tone: rand() < 0.84 ? palette.paper : rand() < 0.95 ? palette.cyan : palette.amber,
       size: 0.95 + rand() * 1.25,
       x: 0,
@@ -527,8 +533,8 @@
   }
 
   function drawBodyVolume(time, geometry, cycle) {
-    if (cycle.body <= 0.04 || cycle.logoWeight > 0.92) return;
-    const alpha = clamp(cycle.body * (1 - cycle.logoWeight * 0.72), 0, 0.72);
+    if (cycle.body <= 0.04) return;
+    const alpha = clamp(cycle.body * (1.08 - cycle.logoWeight * 0.1), 0, 0.82);
     if (alpha <= 0.01) return;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
@@ -557,16 +563,16 @@
       const length = Math.hypot(dx, dy) || 1;
       const nx = -dy / length;
       const ny = dx / length;
-      for (let j = 0; j < 18; j++) {
-        const t = (j + 0.5) / 18;
+      for (let j = 0; j < 22; j++) {
+        const t = (j + 0.5) / 22;
         const seed = j * 12.989 + a[0] * 0.013 + b[1] * 0.017;
         const spread = Math.sin(seed + time * 0.9) * width * 0.62;
         const jitter = Math.cos(seed * 1.7 + time * 0.7) * width * 0.18;
         const x = a[0] + dx * t + nx * spread + Math.sin(seed) * jitter;
         const y = a[1] + dy * t + ny * spread + Math.cos(seed) * jitter;
-        const dotAlpha = alpha * (0.08 + 0.1 * Math.sin(seed + time * 1.3) ** 2);
+        const dotAlpha = alpha * (0.15 + 0.16 * Math.sin(seed + time * 1.3) ** 2);
         const tone = j % 5 === 0 ? palette.cyan : palette.paper;
-        const size = 1.2 + (j % 4) * 0.35 + width * 0.02;
+        const size = 1.45 + (j % 4) * 0.4 + width * 0.02;
         ctx.fillStyle = `rgba(${tone}, ${dotAlpha})`;
         ctx.fillRect(x, y, size, size);
       }
@@ -578,7 +584,7 @@
       const radius = 11 + Math.sin(j * 1.7 + time) * 9;
       const x = head[0] + Math.cos(a) * radius;
       const y = head[1] + Math.sin(a) * radius;
-      ctx.fillStyle = `rgba(${j % 6 === 0 ? palette.amber : palette.paper}, ${alpha * 0.11})`;
+      ctx.fillStyle = `rgba(${j % 6 === 0 ? palette.amber : palette.paper}, ${alpha * 0.16})`;
       ctx.fillRect(x, y, 1.7, 1.7);
     }
     ctx.restore();
@@ -591,7 +597,7 @@
       const particle = state.motionParticles[i];
       const towardLogo = clamp((cycle.logoWeight - particle.delay) * 1.25, 0, 1);
       const transit = Math.sin(Math.PI * towardLogo);
-      const bodyPresence = cycle.body * (1 - cycle.logoWeight * 0.62);
+      const bodyPresence = cycle.body * (1 - cycle.logoWeight * 0.24);
       const transferPresence = cycle.depositWindow * (0.16 + transit * 0.7);
       const releasePresence = cycle.release * (0.12 + (1 - towardLogo) * 0.3);
       const alpha = particle.alpha * (0.03 * cycle.bodyReveal + bodyPresence * 1.05 + transferPresence + releasePresence);
@@ -605,16 +611,33 @@
 
   function drawLogoParticles(time, cycle) {
     const logoAlpha = state.logoDisplayLevel;
-    if (logoAlpha <= 0.002) return;
+    const logoDensity = state.logoDisplayDensity;
+    if (logoAlpha <= 0.002 || logoDensity <= 0.002) return;
+    const center = logoPoint([0, 0], 0);
+    const cloudMotion = 1.1 + logoDensity * 2.6 + cycle.depositWindow * 1.4;
+    const pulse = 0.84 + logoDensity * 0.24 + cycle.depositWindow * 0.2;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (let i = 0; i < state.logoLimit; i++) {
       const particle = state.logoParticles[i];
+      if (particle.reveal > logoDensity) continue;
       const shimmer = 0.86 + 0.14 * Math.sin(time * 1.2 + particle.seed);
-      const alpha = logoAlpha * shimmer * (particle.tone === palette.paper ? 1.02 : 1.22);
-      const size = particle.size * (1 + state.logoDisplayLevel * 0.72);
+      const dx = particle.x - center[0];
+      const dy = particle.y - center[1];
+      const radius = Math.hypot(dx, dy) || 1;
+      const orbit = Math.min(5.4, radius * (0.012 + logoDensity * 0.01 + cycle.depositWindow * 0.004));
+      const orbitX = (-dy / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
+      const orbitY = (dx / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
+      const jitterX =
+        Math.sin(time * 1.16 + particle.seed) * cloudMotion +
+        Math.sin(time * 2.1 + particle.seed * 0.37) * cloudMotion * 0.42;
+      const jitterY =
+        Math.cos(time * 0.94 + particle.seed * 0.72) * cloudMotion +
+        Math.cos(time * 1.8 + particle.seed * 0.51) * cloudMotion * 0.34;
+      const alpha = logoAlpha * shimmer * pulse * (particle.tone === palette.paper ? 0.92 : 1.18);
+      const size = particle.size * (1 + state.logoDisplayLevel * 0.64 + logoDensity * 0.28);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
-      ctx.fillRect(particle.x, particle.y, size, size);
+      ctx.fillRect(particle.x + jitterX + orbitX, particle.y + jitterY + orbitY, size, size);
     }
     ctx.restore();
   }
@@ -636,8 +659,9 @@
   }
 
   function drawPoseOverlay(time, geometry, previousGeometry, cycle) {
-    if (!profile.cv || cycle.body <= 0.08 || cycle.logoWeight > 0.88) return;
-    const alpha = clamp(cycle.body * 0.22 * (1 - cycle.logoWeight), 0, 0.24);
+    if (!profile.cv || cycle.body <= 0.08) return;
+    const alpha = clamp(cycle.body * (0.16 + cycle.depositWindow * 0.08) * (1 - cycle.logoWeight * 0.18), 0, 0.22);
+    if (alpha <= 0.012) return;
     const bounds = poseBounds(geometry);
     const corner = Math.min(34, bounds.w * 0.22, bounds.h * 0.18);
     ctx.save();
@@ -756,11 +780,15 @@
     const previousPose = poseGeometry(currentPose(poseTime - 0.16));
 
     state.logoLevel = Math.max(state.logoLevel, cycle.logoTargetLevel);
+    state.logoDensity = Math.max(state.logoDensity, cycle.logoTargetDensity);
     if (force || staticMode) {
       state.logoDisplayLevel = state.logoLevel;
+      state.logoDisplayDensity = state.logoDensity;
     } else {
       const nextDisplay = lerp(state.logoDisplayLevel, state.logoLevel, 0.075 + cycle.depositWindow * 0.035);
+      const nextDensity = lerp(state.logoDisplayDensity, state.logoDensity, 0.06 + cycle.depositWindow * 0.05);
       state.logoDisplayLevel = Math.max(state.logoDisplayLevel, nextDisplay);
+      state.logoDisplayDensity = Math.max(state.logoDisplayDensity, nextDensity);
     }
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
