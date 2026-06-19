@@ -424,8 +424,13 @@
     for (const particle of state.logoParticles) {
       const target = state.logoTargets[particle.logoIndex % state.logoTargets.length];
       const point = logoPoint(target, particle.logoJitter);
+      particle.baseX = point[0];
+      particle.baseY = point[1];
       particle.x = point[0];
       particle.y = point[1];
+      particle.vx = 0;
+      particle.vy = 0;
+      particle.energy = 0;
     }
   }
 
@@ -469,6 +474,11 @@
       reveal: rand(),
       tone: rand() < 0.84 ? palette.paper : rand() < 0.95 ? palette.cyan : palette.amber,
       size: 0.95 + rand() * 1.25,
+      baseX: 0,
+      baseY: 0,
+      vx: 0,
+      vy: 0,
+      energy: 0,
       x: 0,
       y: 0,
     }));
@@ -823,13 +833,94 @@
     ctx.restore();
   }
 
+  function updateLogoParticles(time, cycle) {
+    const logoAlpha = state.logoDisplayLevel;
+    const logoDensity = state.logoDisplayDensity;
+    if (staticMode || logoAlpha <= 0.002 || logoDensity <= 0.002) return;
+
+    const center = logoPoint([0, 0], 0);
+    const precision = smooth((logoDensity - 0.34) / 0.54);
+    const pointer = state.pointer;
+    const spring = 0.07 + precision * 0.066;
+    const damping = 0.8 - precision * 0.035;
+    const livingRange = lerp(13.5, 4.6, precision) * (0.62 + logoAlpha * 0.62);
+
+    for (let i = 0; i < state.logoLimit; i++) {
+      const particle = state.logoParticles[i];
+      const revealAlpha = smooth((logoDensity - particle.reveal) / 0.12);
+      if (revealAlpha <= 0.004) continue;
+
+      const dx = particle.baseX - center[0];
+      const dy = particle.baseY - center[1];
+      const radius = Math.hypot(dx, dy) || 1;
+      const nx = dx / radius;
+      const ny = dy / radius;
+      const tx = -ny;
+      const ty = nx;
+      const phase = time * 1.9 + radius * 0.024 + particle.seed * 0.033;
+      const pulse = Math.sin(phase) * livingRange;
+      const counterPulse = Math.sin(time * 0.83 + particle.seed * 0.19) * livingRange * 0.36;
+      let homeX = particle.baseX + nx * pulse + tx * counterPulse;
+      let homeY = particle.baseY + ny * pulse * 0.72 + ty * counterPulse;
+      let kickX = 0;
+      let kickY = 0;
+      let energy = 0;
+
+      if (pointer.strength > 0.02) {
+        const vx = particle.x - pointer.x;
+        const vy = particle.y - pointer.y;
+        const distance = Math.hypot(vx, vy) || 1;
+        const pull = pointer.strength / (1 + Math.pow(distance / 260, 2));
+        const pnx = vx / distance;
+        const pny = vy / distance;
+        homeX -= pnx * pull * 22;
+        homeY -= pny * pull * 15;
+        kickX -= pnx * pull * 4.2;
+        kickY -= pny * pull * 3.1;
+        kickX += -pny * pull * 1.05 * Math.sin(time + particle.seed);
+        kickY += pnx * pull * 0.72 * Math.sin(time + particle.seed);
+        energy += pull * 1.2;
+      }
+
+      for (const wave of pointer.waves) {
+        const age = time - wave.start;
+        if (age < 0 || age > wave.life) continue;
+        const progress = clamp(age / wave.life, 0, 1);
+        const vx = particle.x - wave.x;
+        const vy = particle.y - wave.y;
+        const distance = Math.hypot(vx, vy) || 1;
+        const diagonal = Math.hypot(state.width, state.height);
+        const radiusAtWave = diagonal * (0.02 + progress * 0.62);
+        const bandWidth = 64 + progress * 96;
+        const band = Math.max(0, 1 - Math.abs(distance - radiusAtWave) / bandWidth);
+        if (band <= 0) continue;
+        const falloff = Math.pow(1 - progress, 1.25);
+        const phaseWave = Math.sin((distance - radiusAtWave) * 0.07 - progress * Math.PI);
+        const waveForce = phaseWave * smooth(band) * falloff * wave.force;
+        const wnx = vx / distance;
+        const wny = vy / distance;
+        kickX += wnx * waveForce * 9.2;
+        kickY += wny * waveForce * 7.4;
+        homeX += wnx * Math.abs(waveForce) * 8.4;
+        homeY += wny * Math.abs(waveForce) * 6.8;
+        energy += Math.abs(waveForce) * 1.7;
+      }
+
+      particle.vx = (particle.vx + (homeX - particle.x) * spring + kickX) * damping;
+      particle.vy = (particle.vy + (homeY - particle.y) * spring + kickY) * damping;
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      particle.energy = lerp(particle.energy, clamp(energy, 0, 1.8), 0.24);
+    }
+  }
+
   function drawLogoParticles(time, cycle) {
     const logoAlpha = state.logoDisplayLevel;
     const logoDensity = state.logoDisplayDensity;
     if (logoAlpha <= 0.002 || logoDensity <= 0.002) return;
     const center = logoPoint([0, 0], 0);
     const precision = smooth((logoDensity - 0.34) / 0.54);
-    const cloudMotion = lerp(2.75, 0.58, precision) + cycle.depositWindow * 0.52;
+    const cloudMotion = lerp(1.4, 0.34, precision) + cycle.depositWindow * 0.36;
     const logoGlow = 0.92 + logoDensity * 0.22;
     const breath = 0.5 + 0.5 * Math.sin(time * 2.15);
     ctx.save();
@@ -842,10 +933,10 @@
       const dx = particle.x - center[0];
       const dy = particle.y - center[1];
       const radius = Math.hypot(dx, dy) || 1;
-      const orbit = Math.min(4.4, radius * lerp(0.018, 0.006, precision));
+      const orbit = Math.min(5.8, radius * lerp(0.024, 0.008, precision));
       const orbitX = (-dy / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
       const orbitY = (dx / radius) * Math.sin(time * 0.7 + particle.seed) * orbit;
-      const breathe = Math.sin(time * 1.34 + radius * 0.018 + particle.seed * 0.04) * (0.42 + logoDensity * 0.62);
+      const breathe = Math.sin(time * 1.34 + radius * 0.018 + particle.seed * 0.04) * (0.78 + logoDensity * 1.2);
       const breatheX = (dx / radius) * breathe;
       const breatheY = (dy / radius) * breathe;
       const jitterX =
@@ -854,8 +945,8 @@
       const jitterY =
         Math.cos(time * 0.94 + particle.seed * 0.72) * cloudMotion +
         Math.cos(time * 1.8 + particle.seed * 0.51) * cloudMotion * 0.34;
-      const alpha = logoAlpha * revealAlpha * shimmer * logoGlow * (0.92 + breath * 0.14) * (particle.tone === palette.paper ? 1.02 : 1.24);
-      const size = particle.size * (0.9 + state.logoDisplayLevel * 0.42 + breath * 0.08);
+      const alpha = logoAlpha * revealAlpha * shimmer * logoGlow * (0.86 + breath * 0.22 + particle.energy * 0.22) * (particle.tone === palette.paper ? 1.02 : 1.24);
+      const size = particle.size * (0.9 + state.logoDisplayLevel * 0.42 + breath * 0.14 + particle.energy * 0.22);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
       ctx.fillRect(particle.x + jitterX + orbitX + breatheX, particle.y + jitterY + orbitY + breatheY, size, size);
     }
@@ -1137,6 +1228,7 @@
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
+    updateLogoParticles(time, cycle);
     drawCalibrationField(time, pose, cycle);
     drawLogoParticles(time, cycle);
     drawBodyVolume(time, pose, cycle);
