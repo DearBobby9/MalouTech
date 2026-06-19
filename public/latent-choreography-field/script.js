@@ -315,9 +315,9 @@
     const w = state.width;
     const h = state.height;
     const isMobile = w < 720;
-    const scale = Math.min(w, h) * (isMobile ? 0.34 : 0.38);
-    const cx = w * (isMobile ? 0.38 : 0.28);
-    const cy = h * (isMobile ? 0.43 : 0.48);
+    const scale = Math.min(w, h) * (isMobile ? 0.38 : 0.44);
+    const cx = w * (isMobile ? 0.39 : 0.29);
+    const cy = h * (isMobile ? 0.37 : 0.405);
     return [cx + target[0] * scale + jitter, cy + target[1] * scale + jitter * 0.32];
   }
 
@@ -368,7 +368,9 @@
     const firstCycle = cycleIndex === 0;
     const fieldOpen = firstCycle ? smooth(raw / 0.14) : 1;
     const toLogo = smooth((raw - 0.37) / 0.2) * (1 - smooth((raw - 0.74) / 0.08));
-    const release = smooth((raw - 0.76) / 0.19);
+    const releaseIn = smooth((raw - 0.76) / 0.13);
+    const releaseOut = 1 - smooth((raw - 0.93) / 0.06);
+    const release = releaseIn * releaseOut;
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
     const bodyReveal = firstCycle ? smooth(raw / 0.14) : 1;
     const sweepCalm = smooth((raw - 0.42) / 0.2);
