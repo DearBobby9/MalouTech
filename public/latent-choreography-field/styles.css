@@ -38,17 +38,7 @@ body {
 }
 
 body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 12;
-  pointer-events: none;
-  opacity: 0.11;
-  background-image:
-    linear-gradient(rgba(238, 231, 217, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(238, 231, 217, 0.035) 1px, transparent 1px);
-  background-size: 8px 8px;
-  mix-blend-mode: overlay;
+  content: none;
 }
 
 a {
@@ -72,7 +62,6 @@ img {
   padding: 24px clamp(20px, 4vw, 64px);
   color: rgba(238, 231, 217, 0.78);
   background: linear-gradient(180deg, rgba(8, 12, 13, 0.78), rgba(8, 12, 13, 0));
-  backdrop-filter: blur(4px);
 }
 
 .brand {
@@ -89,7 +78,6 @@ img {
 .brand img {
   width: 20px;
   height: 20px;
-  filter: drop-shadow(0 0 8px rgba(103, 197, 196, 0.12));
 }
 
 .nav-links {
@@ -178,11 +166,7 @@ body.static-hero .field-canvas {
 }
 
 .hero-grain {
-  opacity: 0.08;
-  background-image:
-    radial-gradient(circle, rgba(238, 231, 217, 0.28) 0 1px, transparent 1px);
-  background-size: 11px 11px;
-  mix-blend-mode: soft-light;
+  display: none;
 }
 
 .hero-vignette {
@@ -545,8 +529,7 @@ body.static-hero .field-canvas {
 
 .reveal,
 .reveal-line,
-.paper-row,
-.method-map {
+.paper-row {
   will-change: transform, opacity;
 }
 
