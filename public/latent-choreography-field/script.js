@@ -27,27 +27,27 @@
   const profiles = {
     low: {
       dprCap: 1,
-      motionCount: 360,
-      logoCount: 180,
-      logoSampleCount: 560,
+      motionCount: 420,
+      logoCount: 720,
+      logoSampleCount: 900,
       fps: 50,
       cv: false,
       gridGap: 150,
     },
     smooth: {
       dprCap: 1,
-      motionCount: 620,
-      logoCount: 320,
-      logoSampleCount: 900,
+      motionCount: 720,
+      logoCount: 1500,
+      logoSampleCount: 1500,
       fps: 60,
       cv: true,
       gridGap: 128,
     },
     high: {
       dprCap: 1.15,
-      motionCount: 920,
-      logoCount: 480,
-      logoSampleCount: 1300,
+      motionCount: 980,
+      logoCount: 1500,
+      logoSampleCount: 1500,
       fps: 60,
       cv: true,
       gridGap: 112,
@@ -75,6 +75,9 @@
     lastDelta: 16.7,
     slowFrames: 0,
     motionLimit: profile.motionCount,
+    logoLimit: profile.logoCount,
+    logoLevel: 0,
+    logoDisplayLevel: 0,
     logoTargets: [],
     motionParticles: [],
     logoParticles: [],
@@ -291,10 +294,24 @@
     const w = state.width;
     const h = state.height;
     const isMobile = w < 720;
-    const scale = Math.min(w, h) * (isMobile ? 0.26 : 0.29);
-    const cx = w * (isMobile ? 0.42 : 0.31);
+    const scale = Math.min(w, h) * (isMobile ? 0.34 : 0.38);
+    const cx = w * (isMobile ? 0.38 : 0.28);
     const cy = h * (isMobile ? 0.43 : 0.48);
     return [cx + target[0] * scale + jitter, cy + target[1] * scale + jitter * 0.32];
+  }
+
+  function sampledLogoTargets() {
+    const source = window.MALOU_LOGO_POINTS;
+    if (!Array.isArray(source) || source.length < 4) return [];
+    const sourceCount = Math.floor(source.length / 2);
+    const count = Math.min(profile.logoSampleCount, sourceCount);
+    const stride = sourceCount / count;
+    const targets = [];
+    for (let i = 0; i < count; i++) {
+      const index = Math.floor(i * stride) * 2;
+      targets.push([source[index] / 2000, source[index + 1] / 2000]);
+    }
+    return targets;
   }
 
   function fallbackLogoTargets() {
@@ -327,14 +344,13 @@
     const loop = 18000;
     const raw = (elapsed % loop) / loop;
     const cycleIndex = Math.floor(elapsed / loop);
-    const toLogo = smooth((raw - 0.4) / 0.18) * (1 - smooth((raw - 0.7) / 0.08));
-    const release = smooth((raw - 0.72) / 0.14);
+    const toLogo = smooth((raw - 0.38) / 0.2) * (1 - smooth((raw - 0.68) / 0.08));
+    const release = smooth((raw - 0.72) / 0.16);
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
     const body = clamp(Math.max(1 - logoWeight, release), 0, 1);
-    const depositGrowth = raw < 0.4 ? 0 : raw < 0.66 ? smooth((raw - 0.4) / 0.26) : 1;
-    const depositWindow = smooth((raw - 0.42) / 0.1) * (1 - smooth((raw - 0.64) / 0.12));
-    const logoBase = clamp((cycleIndex + depositGrowth) * 0.055, 0, 0.42);
-    const logoGlow = depositWindow * (0.14 + Math.min(cycleIndex, 4) * 0.025);
+    const depositGrowth = raw < 0.38 ? 0 : raw < 0.68 ? smooth((raw - 0.38) / 0.3) : 1;
+    const depositWindow = smooth((raw - 0.4) / 0.12) * (1 - smooth((raw - 0.66) / 0.12));
+    const logoTargetLevel = clamp(depositGrowth * (0.72 + cycleIndex * 0.08), 0, 1);
     const shake = clamp(Math.max(1 - logoWeight, release), 0, 1);
     const phrase = raw < 0.4
       ? "dance"
@@ -345,7 +361,7 @@
           : raw < 0.92
             ? "emit"
             : "reform";
-    return { raw, cycleIndex, logoWeight, release, body, logoBase, logoGlow, depositWindow, shake, phrase };
+    return { raw, cycleIndex, logoWeight, release, body, logoTargetLevel, depositGrowth, depositWindow, shake, phrase };
   }
 
   function refreshLogoTargets() {
@@ -402,10 +418,11 @@
       logoJitter: (rand() - 0.5) * 1.2,
       seed: rand() * 1000,
       tone: rand() < 0.84 ? palette.paper : rand() < 0.95 ? palette.cyan : palette.amber,
-      size: 0.7 + rand() * 1.15,
+      size: 0.95 + rand() * 1.25,
       x: 0,
       y: 0,
     }));
+    state.logoLimit = logoCount;
     refreshLogoTargets();
   }
 
@@ -446,7 +463,7 @@
     }
 
     ctx.save();
-    ctx.globalAlpha = 0.08 + cycle.logoBase * 0.16;
+    ctx.globalAlpha = 0.08 + state.logoDisplayLevel * 0.12;
     ctx.strokeStyle = `rgba(${palette.paper}, 0.14)`;
     ctx.lineWidth = 1;
     const gap = Math.max(110, profile.gridGap);
@@ -493,11 +510,12 @@
   function drawMotionParticles(cycle) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    const bodyAlpha = 0.18 + cycle.body * 0.56 + cycle.depositWindow * 0.18;
+    const logoAssimilation = Math.pow(1 - cycle.logoWeight, 2.2);
+    const bodyAlpha = (0.16 + cycle.body * 0.58) * logoAssimilation + cycle.release * 0.14;
     for (let i = 0; i < state.motionLimit; i++) {
       const particle = state.motionParticles[i];
       const alpha = particle.alpha * bodyAlpha;
-      const size = particle.size * (1 + cycle.depositWindow * 0.32);
+      const size = particle.size * (1 + cycle.depositWindow * 0.18);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
       ctx.fillRect(particle.x, particle.y, size, size);
     }
@@ -505,29 +523,93 @@
   }
 
   function drawLogoParticles(time, cycle) {
-    const logoAlpha = cycle.logoBase + cycle.logoGlow;
+    const logoAlpha = state.logoDisplayLevel;
     if (logoAlpha <= 0.002) return;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    for (const particle of state.logoParticles) {
-      const shimmer = 0.66 + 0.34 * Math.sin(time * 1.2 + particle.seed);
+    for (let i = 0; i < state.logoLimit; i++) {
+      const particle = state.logoParticles[i];
+      const shimmer = 0.86 + 0.14 * Math.sin(time * 1.2 + particle.seed);
       const alpha = logoAlpha * shimmer * (particle.tone === palette.paper ? 1.02 : 1.22);
-      const size = particle.size * (1 + cycle.logoGlow * 3.6);
+      const size = particle.size * (1 + state.logoDisplayLevel * 0.72);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
       ctx.fillRect(particle.x, particle.y, size, size);
     }
     ctx.restore();
   }
 
+  function poseBounds(geometry) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const key of landmarkKeys) {
+      const point = geometry.points[key];
+      minX = Math.min(minX, point[0]);
+      minY = Math.min(minY, point[1]);
+      maxX = Math.max(maxX, point[0]);
+      maxY = Math.max(maxY, point[1]);
+    }
+    const pad = Math.max(28, Math.min(state.width, state.height) * 0.035);
+    return { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
+  }
+
   function drawPoseOverlay(time, geometry, previousGeometry, cycle) {
     if (!profile.cv || cycle.body <= 0.08 || cycle.logoWeight > 0.88) return;
-    const alpha = clamp(cycle.body * 0.42 * (1 - cycle.logoWeight), 0, 0.46);
+    const alpha = clamp(cycle.body * 0.62 * (1 - cycle.logoWeight), 0, 0.68);
+    const bounds = poseBounds(geometry);
+    const corner = Math.min(34, bounds.w * 0.22, bounds.h * 0.18);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha})`;
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha * 0.36})`;
     ctx.lineWidth = 1;
+    ctx.setLineDash([7, 11]);
+    for (let i = 1; i < 4; i++) {
+      const y = bounds.y + (bounds.h * i) / 4 + Math.sin(time * 1.1 + i) * 2;
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + 8, y);
+      ctx.lineTo(bounds.x + bounds.w - 8, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha * 0.72})`;
+    ctx.lineWidth = 1.25;
+    const bx = bounds.x;
+    const by = bounds.y;
+    const br = bounds.x + bounds.w;
+    const bb = bounds.y + bounds.h;
+    const corners = [
+      [bx, by, bx + corner, by, bx, by + corner],
+      [br, by, br - corner, by, br, by + corner],
+      [bx, bb, bx + corner, bb, bx, bb - corner],
+      [br, bb, br - corner, bb, br, bb - corner],
+    ];
+    for (const [x1, y1, x2, y2, x3, y3] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x3, y3);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = `rgba(${palette.paper}, ${alpha * 0.18})`;
+    ctx.lineWidth = 4.2;
+    for (const [aName, bName] of bones) {
+      const a = previousGeometry.points[aName];
+      const b = previousGeometry.points[bName];
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo(b[0], b[1]);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha})`;
+    ctx.lineWidth = 1.55;
     for (const [aName, bName] of bones) {
       const a = geometry.points[aName];
       const b = geometry.points[bName];
@@ -536,25 +618,50 @@
       ctx.lineTo(b[0], b[1]);
       ctx.stroke();
     }
+
     for (let i = 0; i < landmarkKeys.length; i++) {
       const point = geometry.points[landmarkKeys[i]];
       const previous = previousGeometry.points[landmarkKeys[i]];
-      const pulse = 1.5 + Math.sin(time * 1.7 + i) * 0.4;
-      ctx.fillStyle = i % 5 === 0 ? `rgba(${palette.amber}, ${alpha * 1.2})` : `rgba(${palette.paper}, ${alpha})`;
-      ctx.fillRect(point[0] - pulse, point[1] - pulse, pulse * 2, pulse * 2);
-      if (i === 7 || i === 8 || i === 13 || i === 14) {
-        ctx.strokeStyle = `rgba(${palette.amber}, ${alpha * 0.55})`;
+      const dx = point[0] - previous[0];
+      const dy = point[1] - previous[1];
+      const isExtremity = i === 0 || i === 7 || i === 8 || i === 13 || i === 14;
+      const radius = isExtremity ? 5.6 : 3.8;
+      ctx.strokeStyle = isExtremity
+        ? `rgba(${palette.amber}, ${alpha * 0.92})`
+        : `rgba(${palette.paper}, ${alpha * 0.72})`;
+      ctx.lineWidth = isExtremity ? 1.35 : 1;
+      ctx.beginPath();
+      ctx.arc(point[0], point[1], radius + Math.sin(time * 1.9 + i) * 0.6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(${palette.paper}, ${alpha * 0.42})`;
+      ctx.fillRect(point[0] - 1, point[1] - 1, 2, 2);
+
+      ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha * 0.24})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(previous[0], previous[1]);
+      ctx.lineTo(point[0], point[1]);
+      ctx.stroke();
+
+      if (isExtremity) {
+        ctx.strokeStyle = `rgba(${palette.amber}, ${alpha * 0.68})`;
+        ctx.lineWidth = 1.2;
+        const vectorLength = Math.hypot(dx, dy) || 1;
+        const vectorScale = Math.min(3.4, 82 / vectorLength);
         ctx.beginPath();
-        ctx.moveTo(previous[0], previous[1]);
-        ctx.lineTo(point[0] + (point[0] - previous[0]) * 2.4, point[1] + (point[1] - previous[1]) * 2.4);
+        ctx.moveTo(point[0], point[1]);
+        ctx.lineTo(point[0] + dx * vectorScale, point[1] + dy * vectorScale);
         ctx.stroke();
       }
     }
+
     if (state.width >= 780) {
       const head = geometry.points.head;
       ctx.fillStyle = `rgba(${palette.cyan}, ${alpha * 0.72})`;
       ctx.font = "10px SFMono-Regular, Menlo, Consolas, monospace";
-      ctx.fillText("CV POSE TRACK 03", head[0] - 48, head[1] - 38);
+      ctx.fillText("POSE FIELD 15PT", bounds.x + 6, bounds.y - 10);
+      ctx.fillStyle = `rgba(${palette.paper}, ${alpha * 0.5})`;
+      ctx.fillText("CONF .94", head[0] + 16, head[1] - 18);
     }
     ctx.restore();
   }
@@ -567,6 +674,13 @@
     const pose = poseGeometry(currentPose(poseTime));
     const previousPose = poseGeometry(currentPose(poseTime - 0.16));
 
+    state.logoLevel = Math.max(state.logoLevel, cycle.logoTargetLevel);
+    if (force || staticMode) {
+      state.logoDisplayLevel = state.logoLevel;
+    } else {
+      const nextDisplay = lerp(state.logoDisplayLevel, state.logoLevel, 0.075 + cycle.depositWindow * 0.035);
+      state.logoDisplayLevel = Math.max(state.logoDisplayLevel, nextDisplay);
+    }
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
@@ -579,8 +693,12 @@
     if (qualityName === "low" || staticMode) return;
     if (delta > 26) state.slowFrames += 1;
     else state.slowFrames = Math.max(0, state.slowFrames - 1);
-    if (state.slowFrames > 18 && state.motionLimit > profiles.low.motionCount) {
+    if (
+      state.slowFrames > 18 &&
+      (state.motionLimit > profiles.low.motionCount || state.logoLimit > profiles.low.logoCount)
+    ) {
       state.motionLimit = Math.max(profiles.low.motionCount, Math.floor(state.motionLimit * 0.78));
+      state.logoLimit = Math.max(profiles.low.logoCount, Math.floor(state.logoLimit * 0.82));
       state.slowFrames = 0;
     }
   }
@@ -623,7 +741,8 @@
   }
 
   function setupLogoTargets() {
-    state.logoTargets = fallbackLogoTargets();
+    state.logoTargets = sampledLogoTargets();
+    if (!state.logoTargets.length) state.logoTargets = fallbackLogoTargets();
     refreshLogoTargets();
   }
 
