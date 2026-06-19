@@ -435,30 +435,33 @@
   function cycleInfo(elapsed) {
     const loop = 28000;
     const raw = (elapsed % loop) / loop;
-    const gather = smooth((raw - 0.08) / 0.16);
+    const startDance = 1 - smooth(raw / 0.18);
+    const gather = smooth((raw - 0.06) / 0.18);
     const logoIn = smooth((raw - 0.58) / 0.1);
     const logoOut = smooth((raw - 0.8) / 0.1);
     const logo = clamp(logoIn * (1 - logoOut), 0, 1);
     const follow = clamp(smooth((raw - 0.42) / 0.12) * (1 - smooth((raw - 0.66) / 0.08)), 0, 1);
     const release = clamp(smooth((raw - 0.82) / 0.08) * (1 - smooth((raw - 0.94) / 0.06)), 0, 1);
     const returnDance = smooth((raw - 0.9) / 0.08);
-    const body = clamp(Math.max(gather * (1 - logo * 0.94), returnDance), 0, 1);
+    const body = clamp(Math.max(startDance, gather * (1 - logo * 0.94), returnDance), 0, 1);
     const logoHold = logo * (1 - release * 0.86);
-    const flow = 1 - clamp(body * 0.5 + logoHold * 0.94, 0, 0.94);
-    const phrase = raw < 0.24
-      ? "drift"
-      : raw < 0.38
-        ? "gather"
-        : raw < 0.58
-          ? "dance"
-          : raw < 0.7
-            ? "trace"
-            : raw < 0.82
-            ? "mark"
-              : raw < 0.94
-                ? "release"
-                : "dance";
-    return { raw, body, follow, logo, logoHold, release, flow, phrase };
+    const flow = 1 - clamp(body * 0.44 + logoHold * 0.94, 0, 0.94);
+    const phrase = raw < 0.13
+      ? "dance"
+      : raw < 0.26
+        ? "drift"
+        : raw < 0.38
+          ? "gather"
+          : raw < 0.58
+            ? "dance"
+            : raw < 0.7
+              ? "trace"
+              : raw < 0.82
+                ? "mark"
+                : raw < 0.94
+                  ? "release"
+                  : "dance";
+    return { raw, startDance, body, follow, logo, logoHold, release, flow, phrase };
   }
 
   function drawMotionHints(pose, prevPose, cycleData) {
@@ -782,7 +785,7 @@
     const time = elapsed / 1000;
     const cycleData = cycleInfo(elapsed);
     const cycle = cycleData.raw;
-    const poseTime = cycle * 2.45 + Math.sin(time * 0.28) * 0.08;
+    const poseTime = time * 0.16 + Math.sin(time * 0.28) * 0.08;
     const pose = currentPose(poseTime);
     const prevPose = currentPose(poseTime - 0.18);
 
