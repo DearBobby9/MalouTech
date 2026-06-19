@@ -244,6 +244,10 @@
     const x = clamp(value, 0, 1);
     return x * x * (3 - 2 * x);
   };
+  const hashUnit = (value) => {
+    const x = Math.sin(value * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  };
 
   function currentPose(cycle) {
     const phrase = (cycle * phraseFrames.length + phraseFrames.length) % phraseFrames.length;
@@ -348,27 +352,27 @@
     const raw = (elapsed % loop) / loop;
     const cycleIndex = Math.floor(elapsed / loop);
     const firstCycle = cycleIndex === 0;
-    const fieldOpen = firstCycle ? smooth(raw / 0.18) : 1;
-    const toLogo = smooth((raw - 0.38) / 0.2) * (1 - smooth((raw - 0.68) / 0.08));
-    const release = smooth((raw - 0.72) / 0.16);
+    const fieldOpen = firstCycle ? smooth(raw / 0.14) : 1;
+    const toLogo = smooth((raw - 0.31) / 0.17) * (1 - smooth((raw - 0.59) / 0.08));
+    const release = smooth((raw - 0.65) / 0.14);
     const logoWeight = clamp(toLogo * (1 - release), 0, 1);
-    const bodyReveal = firstCycle ? smooth((raw - 0.14) / 0.14) : 1;
+    const bodyReveal = firstCycle ? smooth((raw - 0.055) / 0.085) : 1;
     const bodyFloor = bodyReveal > 0.98 ? 0.62 : 0;
     const body = clamp(Math.max(bodyFloor, 1 - logoWeight * 0.48, release), 0, 1) * bodyReveal;
-    const depositWindow = smooth((raw - 0.4) / 0.12) * (1 - smooth((raw - 0.66) / 0.12));
-    const depositCommit = raw >= 0.66;
+    const depositWindow = smooth((raw - 0.33) / 0.1) * (1 - smooth((raw - 0.57) / 0.1));
+    const depositCommit = raw >= 0.57;
     const logoTargetLevel = depositCommit ? 0.82 : 0;
     const logoTargetDensity = depositCommit ? clamp(0.58 + cycleIndex * 0.24, 0, 1) : 0;
     const shake = clamp(Math.max(1 - logoWeight, release), 0, 1);
-    const phrase = firstCycle && raw < 0.2
+    const phrase = firstCycle && raw < 0.18
       ? "calibrate"
-      : raw < 0.4
+      : raw < 0.31
         ? "perform"
-      : raw < 0.66
+      : raw < 0.57
         ? "condense"
-        : raw < 0.72
+        : raw < 0.65
           ? "mark"
-          : raw < 0.92
+          : raw < 0.88
             ? "emit"
             : "reform";
     return {
@@ -659,6 +663,134 @@
     return { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
   }
 
+  function drawCalibrationField(time, geometry, cycle) {
+    if (!cycle.firstCycle) return;
+    const presence = 1 - smooth((cycle.raw - 0.165) / 0.055);
+    if (presence <= 0.01) return;
+
+    const bounds = poseBounds(geometry);
+    const w = state.width;
+    const phaseIn = smooth(cycle.raw / 0.045);
+    const attract = smooth((cycle.raw - 0.036) / 0.082);
+    const alpha = presence * (0.18 + phaseIn * 0.82);
+    const left = Math.max(0, bounds.x - bounds.w * 0.32);
+    const right = Math.min(w, bounds.x + bounds.w * 1.16);
+    const top = Math.max(0, bounds.y - bounds.h * 0.22);
+    const bottom = Math.min(h, bounds.y + bounds.h * 1.16);
+    const corner = Math.min(32, bounds.w * 0.2, bounds.h * 0.18);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "square";
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha * 0.12})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = lerp(top, bottom, (i + 1) / 6);
+      ctx.beginPath();
+      ctx.moveTo(left, y + Math.sin(time * 1.1 + i) * 2);
+      ctx.lineTo(right, y + Math.cos(time * 0.9 + i) * 2);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 4; i++) {
+      const x = lerp(left, right, (i + 1) / 5);
+      ctx.beginPath();
+      ctx.moveTo(x + Math.sin(time * 0.8 + i) * 2, top);
+      ctx.lineTo(x + Math.cos(time * 0.7 + i) * 2, bottom);
+      ctx.stroke();
+    }
+
+    const scanY = lerp(top, bottom, (cycle.raw * 9.4) % 1);
+    const scanAlpha = alpha * (0.24 + 0.18 * Math.sin(time * 7) ** 2);
+    const gradient = ctx.createLinearGradient(left, scanY, right, scanY);
+    gradient.addColorStop(0, `rgba(${palette.cyan}, 0)`);
+    gradient.addColorStop(0.5, `rgba(${palette.cyan}, ${scanAlpha})`);
+    gradient.addColorStop(1, `rgba(${palette.cyan}, 0)`);
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(left, scanY);
+    ctx.lineTo(right, scanY);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${alpha * 0.42})`;
+    ctx.lineWidth = 1.15;
+    const bx = bounds.x;
+    const by = bounds.y;
+    const br = bounds.x + bounds.w;
+    const bb = bounds.y + bounds.h;
+    const corners = [
+      [bx, by, bx + corner, by, bx, by + corner],
+      [br, by, br - corner, by, br, by + corner],
+      [bx, bb, bx + corner, bb, bx, bb - corner],
+      [br, bb, br - corner, bb, br, bb - corner],
+    ];
+    for (const [x1, y1, x2, y2, x3, y3] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x3, y3);
+      ctx.stroke();
+    }
+
+    const count = state.width < 720 ? 92 : profile.cv ? 184 : 116;
+    for (let i = 0; i < count; i++) {
+      const segment = geometry.segments[i % geometry.segments.length];
+      const seed = i + 11;
+      const sourceX = lerp(left, right, hashUnit(seed * 1.7)) + Math.sin(time * 1.2 + seed) * 10;
+      const sourceY = lerp(top, bottom, hashUnit(seed * 2.1)) + Math.cos(time * 1.1 + seed) * 8;
+      const normal = (hashUnit(seed * 3.3) - 0.5) * 38;
+      const boneT = hashUnit(seed * 4.7);
+      const targetX = segment.ax + segment.dx * boneT + segment.nx * normal;
+      const targetY = segment.ay + segment.dy * boneT + segment.ny * normal;
+      const localAttract = smooth(attract - hashUnit(seed * 5.9) * 0.18);
+      const vibration = (1 - localAttract) * 5 + 1.5;
+      const x = lerp(sourceX, targetX, localAttract) + Math.sin(time * 2 + seed) * vibration;
+      const y = lerp(sourceY, targetY, localAttract) + Math.cos(time * 1.7 + seed) * vibration;
+      const dotAlpha = alpha * (0.08 + localAttract * 0.4 + hashUnit(seed * 7.1) * 0.18);
+      const tone = i % 11 === 0 ? palette.amber : i % 4 === 0 ? palette.cyan : palette.paper;
+      const size = 1 + localAttract * 1.2 + hashUnit(seed * 8.3) * 0.8;
+      ctx.fillStyle = `rgba(${tone}, ${dotAlpha})`;
+      ctx.fillRect(x, y, size, size);
+    }
+
+    const keyAlpha = alpha * smooth((cycle.raw - 0.06) / 0.045);
+    if (keyAlpha > 0.01) {
+      ctx.strokeStyle = `rgba(${palette.cyan}, ${keyAlpha * 0.62})`;
+      ctx.lineWidth = 0.8;
+      for (const [aName, bName] of bones) {
+        const a = geometry.points[aName];
+        const b = geometry.points[bName];
+        ctx.beginPath();
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(b[0], b[1]);
+        ctx.stroke();
+      }
+      for (let i = 0; i < landmarkKeys.length; i++) {
+        const point = geometry.points[landmarkKeys[i]];
+        const extremity = i === 0 || i === 7 || i === 8 || i === 13 || i === 14;
+        ctx.strokeStyle = extremity
+          ? `rgba(${palette.amber}, ${keyAlpha * 0.72})`
+          : `rgba(${palette.paper}, ${keyAlpha * 0.56})`;
+        ctx.beginPath();
+        ctx.arc(point[0], point[1], extremity ? 5 : 3.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    if (w >= 780) {
+      const conf = 0.18 + smooth((cycle.raw - 0.035) / 0.09) * 0.76;
+      ctx.font = "10px SFMono-Regular, Menlo, Consolas, monospace";
+      ctx.fillStyle = `rgba(${palette.cyan}, ${alpha * 0.72})`;
+      ctx.fillText("POSE FIELD", bounds.x, bounds.y - 32);
+      ctx.fillStyle = `rgba(${palette.paper}, ${alpha * 0.5})`;
+      ctx.fillText(`CONF ${conf.toFixed(2)}`, bounds.x + 86, bounds.y - 32);
+      ctx.fillText("15PT TRACK", bounds.x, bounds.y - 15);
+    }
+    ctx.restore();
+  }
+
   function drawPoseOverlay(time, geometry, previousGeometry, cycle) {
     if (!profile.cv || cycle.body <= 0.08) return;
     const alpha = clamp(cycle.body * (0.2 + cycle.depositWindow * 0.1) * (1 - cycle.logoWeight * 0.12), 0, 0.3);
@@ -790,6 +922,7 @@
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
+    drawCalibrationField(time, pose, cycle);
     drawLogoParticles(time, cycle);
     drawBodyVolume(time, pose, cycle);
     drawMotionParticles(cycle);
@@ -891,10 +1024,10 @@
     }
     const elapsed = (performance.now() - state.start) / 1000;
     const items = [
-      [".hero-title span", 2.8],
-      [".reveal-line", 3.02],
-      [".hero-readout", 3.18],
-      [".scroll-cue", 3.32],
+      [".hero-title span", 2.05],
+      [".reveal-line", 2.22],
+      [".hero-readout", 2.38],
+      [".scroll-cue", 2.58],
     ];
     for (const [selector, at] of items) {
       for (const element of document.querySelectorAll(selector)) {
