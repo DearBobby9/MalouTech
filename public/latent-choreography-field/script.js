@@ -523,14 +523,14 @@
   function pushFieldWave(x, y, force, now, type = "drag") {
     if (staticMode || reduceMotion || coarsePointer) return;
     const pointer = state.pointer;
-    const maxWaves = profile.cv ? 7 : 4;
+    const maxWaves = profile.cv ? 5 : 3;
     pointer.waves.push({
       id: pointer.waveId++,
       x,
       y,
       start: (now - state.start) / 1000,
-      life: type === "press" ? 2.45 : 1.75,
-      force: clamp(force, 0.28, 1.35),
+      life: type === "press" ? 1.55 : 0.95,
+      force: clamp(force, 0.16, 0.95),
       spin: hashUnit(x * 0.037 + y * 0.021 + pointer.waveId) > 0.5 ? 1 : -1,
       type,
     });
@@ -551,12 +551,18 @@
       const vx = x - pointer.x;
       const vy = y - pointer.y;
       const distance = Math.hypot(vx, vy) || 1;
-      const lens = Math.exp(-distance / 520) * pointer.strength;
-      const drift = Math.sin(time * 1.6 + distance * 0.006) * lens;
-      dx += (vx / distance) * drift * 14;
-      dy += (vy / distance) * drift * 8;
-      z += lens * 0.08;
-      energy += lens * 0.12;
+      const nx = vx / distance;
+      const ny = vy / distance;
+      const wide = pointer.strength / (1 + Math.pow(distance / 340, 2));
+      const core = Math.exp(-(distance * distance) / (190 * 190)) * pointer.strength;
+      const pull = wide * 46 + core * 108;
+      const spiral = Math.sin(time * 1.2 + distance * 0.012) * core * 10;
+      dx -= nx * pull;
+      dy -= ny * (pull * 0.64);
+      dx += -ny * spiral;
+      dy += nx * spiral * 0.45;
+      z += core * 1.4 + wide * 0.3;
+      energy += core * 0.9 + wide * 0.28;
     }
 
     for (const wave of pointer.waves) {
@@ -566,19 +572,19 @@
       const vx = x - wave.x;
       const vy = y - wave.y;
       const distance = Math.hypot(vx, vy) || 1;
-      const radius = diagonal * (0.03 + progress * 0.96);
-      const bandWidth = 58 + progress * 142;
+      const radius = diagonal * (0.02 + progress * 0.62);
+      const bandWidth = 34 + progress * 68;
       const band = Math.max(0, 1 - Math.abs(distance - radius) / bandWidth);
       if (band <= 0) continue;
-      const falloff = Math.pow(1 - progress, 1.25);
-      const pulse = smooth(band) * falloff * wave.force;
+      const falloff = Math.pow(1 - progress, 1.55);
+      const phase = Math.sin((distance - radius) * 0.075 - progress * Math.PI);
+      const pulse = phase * smooth(band) * falloff * wave.force;
       const nx = vx / distance;
       const ny = vy / distance;
-      const shear = Math.sin(progress * Math.PI * 2 + distance * 0.006 + wave.id) * pulse * wave.spin;
-      dx += nx * pulse * 104 - ny * shear * 38;
-      dy += ny * pulse * 48 + nx * shear * 24;
-      z += pulse * (1.35 + progress * 0.58);
-      energy += pulse;
+      dx += nx * pulse * 22;
+      dy += ny * pulse * 12;
+      z += Math.abs(pulse) * 0.16;
+      energy += Math.abs(pulse) * 0.24;
     }
 
     return { dx, dy, z, energy: clamp(energy, 0, 1.5) };
@@ -588,7 +594,7 @@
     const field = fieldDisplacement(x, y, time);
     const vanishingX = state.width * 0.55;
     const vanishingY = state.height * 0.36;
-    const perspective = 1 + field.z * 0.012 * depth;
+    const perspective = 1 + field.z * 0.009 * depth;
     return {
       x: vanishingX + (x - vanishingX) * perspective + field.dx * depth,
       y: vanishingY + (y - vanishingY) * perspective + field.dy * depth,
@@ -604,29 +610,119 @@
     });
   }
 
-  function drawFieldSurfaces(time) {
-    const w = state.width;
-    const h = state.height;
-    const panels = [
-      [[w * 0.05, h * 0.2], [w * 0.38, h * 0.12], [w * 0.45, h * 0.36], [w * 0.12, h * 0.48]],
-      [[w * 0.42, h * 0.08], [w * 0.9, h * 0.16], [w * 0.82, h * 0.42], [w * 0.34, h * 0.34]],
-      [[w * 0.2, h * 0.56], [w * 0.58, h * 0.48], [w * 0.68, h * 0.78], [w * 0.1, h * 0.86]],
-      [[w * 0.66, h * 0.38], [w * 1.05, h * 0.3], [w * 1.02, h * 0.72], [w * 0.58, h * 0.68]],
-    ];
+  function drawLensCore(time) {
+    const pointer = state.pointer;
+    const strength = pointer.strength;
+    if (strength <= 0.025) return;
+    const x = pointer.x;
+    const y = pointer.y;
+    const radius = Math.min(260, Math.max(130, Math.min(state.width, state.height) * 0.2));
 
     ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const halo = ctx.createRadialGradient(x, y, radius * 0.08, x, y, radius);
+    halo.addColorStop(0, `rgba(${palette.cyan}, ${0.018 * strength})`);
+    halo.addColorStop(0.34, `rgba(${palette.cyan}, ${0.035 * strength})`);
+    halo.addColorStop(1, `rgba(${palette.cyan}, 0)`);
+    ctx.fillStyle = halo;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+
+    ctx.globalCompositeOperation = "source-over";
+    const core = ctx.createRadialGradient(x, y, 0, x, y, radius * 0.42);
+    core.addColorStop(0, `rgba(2, 5, 6, ${0.32 * strength})`);
+    core.addColorStop(0.52, `rgba(2, 5, 6, ${0.08 * strength})`);
+    core.addColorStop(1, "rgba(2, 5, 6, 0)");
+    ctx.fillStyle = core;
+    ctx.fillRect(x - radius * 0.42, y - radius * 0.42, radius * 0.84, radius * 0.84);
+
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${0.12 * strength})`;
     ctx.lineWidth = 1;
-    panels.forEach((panel, index) => {
-      const sample = fieldDisplacement(panel[1][0], panel[1][1], time);
-      const alpha = 0.024 + sample.energy * 0.09;
+    ctx.beginPath();
+    ctx.ellipse(
+      x,
+      y,
+      radius * (0.46 + Math.sin(time * 1.1) * 0.02),
+      radius * (0.16 + Math.cos(time * 1.4) * 0.012),
+      -0.18,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLensMesh(time) {
+    const pointer = state.pointer;
+    const strength = pointer.strength;
+    if (strength <= 0.035) return;
+    const x = pointer.x;
+    const y = pointer.y;
+    const radius = Math.min(310, Math.max(170, Math.min(state.width, state.height) * 0.25));
+    const rings = qualityName === "low" ? 4 : 6;
+    const spokes = qualityName === "low" ? 8 : 12;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineWidth = 1;
+    ctx.lineCap = "round";
+
+    for (let ring = 1; ring <= rings; ring++) {
+      const r = (ring / rings) * radius;
+      const segments = 56;
       ctx.beginPath();
-      traceWarpedPolyline(panel, time, 0.82 + index * 0.1);
-      ctx.closePath();
-      ctx.fillStyle = `rgba(${index % 2 ? palette.paper : palette.cyan}, ${alpha})`;
-      ctx.strokeStyle = `rgba(${palette.cyan}, ${0.045 + sample.energy * 0.18})`;
-      ctx.fill();
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        const px = x + Math.cos(angle) * r;
+        const py = y + Math.sin(angle) * r * 0.55;
+        const warped = warpBackgroundPoint(px, py, time, 0.45);
+        if (i === 0) ctx.moveTo(warped.x, warped.y);
+        else ctx.lineTo(warped.x, warped.y);
+      }
+      ctx.strokeStyle = `rgba(${palette.cyan}, ${strength * (0.035 + ring * 0.006)})`;
       ctx.stroke();
-    });
+    }
+
+    for (let spoke = 0; spoke < spokes; spoke++) {
+      const angle = (spoke / spokes) * Math.PI * 2 + Math.sin(time * 0.3) * 0.04;
+      const steps = 9;
+      ctx.beginPath();
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const r = radius * (0.18 + t * 0.82);
+        const px = x + Math.cos(angle) * r;
+        const py = y + Math.sin(angle) * r * 0.55;
+        const warped = warpBackgroundPoint(px, py, time, 0.5);
+        if (i === 1) ctx.moveTo(warped.x, warped.y);
+        else ctx.lineTo(warped.x, warped.y);
+      }
+      ctx.strokeStyle = `rgba(${palette.paper}, ${strength * 0.035})`;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawLensDust(time) {
+    const pointer = state.pointer;
+    const strength = pointer.strength;
+    if (strength <= 0.03) return;
+    const count = qualityName === "low" ? 14 : 24;
+    const radius = Math.min(340, Math.max(190, Math.min(state.width, state.height) * 0.28));
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < count; i++) {
+      const seed = i + 31;
+      const base = hashUnit(seed * 3.4);
+      const angle = base * Math.PI * 2 + time * (0.05 + hashUnit(seed) * 0.08);
+      const orbit = radius * (0.18 + hashUnit(seed * 5.3) * 0.8);
+      const collapse = strength * (0.35 + hashUnit(seed * 7.9) * 0.45);
+      const px = pointer.x + Math.cos(angle) * orbit * (1 - collapse * 0.32);
+      const py = pointer.y + Math.sin(angle) * orbit * (0.5 - collapse * 0.12);
+      const tone = i % 7 === 0 ? palette.amber : i % 3 === 0 ? palette.cyan : palette.paper;
+      ctx.fillStyle = `rgba(${tone}, ${strength * (0.018 + hashUnit(seed * 9.1) * 0.035)})`;
+      ctx.fillRect(px, py, 1.1, 1.1);
+    }
     ctx.restore();
   }
 
@@ -643,23 +739,23 @@
       const age = time - wave.start;
       if (age < 0 || age > wave.life) continue;
       const progress = clamp(age / wave.life, 0, 1);
-      const radius = diagonal * (0.03 + progress * 0.96);
-      const alpha = Math.pow(1 - progress, 1.35) * wave.force;
-      for (let ring = 0; ring < 3; ring++) {
-        const ringRadius = radius + (ring - 1) * (32 + progress * 28);
+      const radius = diagonal * (0.02 + progress * 0.62);
+      const alpha = Math.pow(1 - progress, 1.55) * wave.force;
+      for (let ring = 0; ring < 2; ring++) {
+        const ringRadius = radius + (ring - 0.5) * (20 + progress * 18);
         if (ringRadius <= 0) continue;
         ctx.beginPath();
         for (let i = 0; i <= segments; i++) {
           const angle = (i / segments) * Math.PI * 2;
-          const squash = 0.54 + progress * 0.18;
+          const squash = 0.56 + progress * 0.12;
           const px = wave.x + Math.cos(angle) * ringRadius;
           const py = wave.y + Math.sin(angle) * ringRadius * squash;
           const warped = warpBackgroundPoint(px, py, time, 0.28);
           if (i === 0) ctx.moveTo(warped.x, warped.y);
           else ctx.lineTo(warped.x, warped.y);
         }
-        ctx.strokeStyle = `rgba(${ring === 1 ? palette.cyan : palette.paper}, ${alpha * (0.1 - ring * 0.014)})`;
-        ctx.lineWidth = ring === 1 ? 1.4 : 0.8;
+        ctx.strokeStyle = `rgba(${ring === 1 ? palette.cyan : palette.paper}, ${alpha * (0.095 - ring * 0.025)})`;
+        ctx.lineWidth = ring === 1 ? 1 : 0.7;
         ctx.stroke();
       }
     }
@@ -679,7 +775,7 @@
       ctx.fillRect(0, 0, w, h);
     }
 
-    drawFieldSurfaces(time);
+    drawLensCore(time);
 
     ctx.save();
     ctx.globalAlpha = 0.1 + state.logoDisplayLevel * 0.1;
@@ -709,6 +805,8 @@
       ctx.stroke();
     }
     ctx.restore();
+    drawLensMesh(time);
+    drawLensDust(time);
     drawFieldWavefronts(time);
   }
 
