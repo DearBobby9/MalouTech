@@ -85,6 +85,16 @@
     logoParticles: [],
     phrase: "dance",
     resizeTimer: 0,
+    pointer: {
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0,
+      strength: 0,
+      targetStrength: 0,
+      active: false,
+      lastMove: 0,
+    },
   };
 
   const bones = [
@@ -466,6 +476,12 @@
     state.dpr = Math.min(window.devicePixelRatio || 1, profile.dprCap);
     state.width = Math.max(1, Math.floor(rect.width));
     state.height = Math.max(1, Math.floor(rect.height));
+    if (!state.pointer.x && !state.pointer.y) {
+      state.pointer.x = state.width * 0.58;
+      state.pointer.y = state.height * 0.46;
+      state.pointer.targetX = state.pointer.x;
+      state.pointer.targetY = state.pointer.y;
+    }
     canvas.width = Math.floor(state.width * state.dpr);
     canvas.height = Math.floor(state.height * state.dpr);
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -484,9 +500,24 @@
     phaseReadout.textContent = text;
   }
 
+  function updatePointerField(now) {
+    const pointer = state.pointer;
+    if (staticMode || reduceMotion || coarsePointer) {
+      pointer.strength = 0;
+      return;
+    }
+    const idle = now - pointer.lastMove > 1500;
+    const targetStrength = pointer.active && !idle ? pointer.targetStrength : 0;
+    pointer.x = lerp(pointer.x, pointer.targetX, 0.16);
+    pointer.y = lerp(pointer.y, pointer.targetY, 0.16);
+    pointer.strength = lerp(pointer.strength, targetStrength, 0.09);
+  }
+
   function drawBackground(time, cycle) {
     const w = state.width;
     const h = state.height;
+    const pointer = state.pointer;
+    const pointerStrength = pointer.strength;
     ctx.globalCompositeOperation = "source-over";
     if (state.firstPaint || staticMode) {
       ctx.fillStyle = palette.ink;
@@ -503,17 +534,77 @@
     ctx.lineWidth = 1;
     const gap = Math.max(110, profile.gridGap);
     for (let x = (time * 8) % gap - gap; x < w + gap; x += gap) {
+      const influence = pointerStrength * Math.max(0, 1 - Math.abs(x + w * 0.04 - pointer.x) / 320);
+      const bend = influence * 22 * Math.sin(time * 1.4 + x * 0.012);
       ctx.beginPath();
       ctx.moveTo(x, 0);
-      ctx.lineTo(x + w * 0.08, h);
+      ctx.lineTo(x + w * 0.08 + bend, h);
       ctx.stroke();
     }
     for (let y = h * 0.2; y < h; y += gap) {
+      const influence = pointerStrength * Math.max(0, 1 - Math.abs(y - pointer.y) / 260);
+      const bend = influence * 16 * Math.cos(time * 1.2 + y * 0.014);
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y + Math.sin(time * 0.3 + y) * 8);
+      ctx.moveTo(0, y + bend * 0.4);
+      ctx.lineTo(w, y + Math.sin(time * 0.3 + y) * 8 + bend);
       ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  function drawPointerField(time) {
+    const pointer = state.pointer;
+    const strength = pointer.strength;
+    if (strength <= 0.012) return;
+
+    const x = pointer.x;
+    const y = pointer.y;
+    const radius = Math.min(320, Math.max(190, Math.min(state.width, state.height) * 0.24));
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `rgba(${palette.cyan}, ${0.08 * strength})`);
+    glow.addColorStop(0.36, `rgba(${palette.cyan}, ${0.025 * strength})`);
+    glow.addColorStop(1, `rgba(${palette.cyan}, 0)`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+
+    ctx.lineCap = "round";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const ring = 36 + i * 38 + Math.sin(time * 1.6 + i) * 5;
+      ctx.strokeStyle = `rgba(${i % 2 ? palette.paper : palette.cyan}, ${strength * (0.055 - i * 0.006)})`;
+      ctx.beginPath();
+      ctx.arc(x, y, ring, -0.25 + i * 0.35 + time * 0.08, Math.PI * 1.15 + i * 0.24 + time * 0.08);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([4, 12]);
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${strength * 0.09})`;
+    ctx.beginPath();
+    ctx.moveTo(x - radius * 0.72, y + Math.sin(time * 2.2) * 8);
+    ctx.lineTo(x + radius * 0.72, y + Math.cos(time * 1.8) * 8);
+    ctx.moveTo(x + Math.sin(time * 1.7) * 8, y - radius * 0.52);
+    ctx.lineTo(x + Math.cos(time * 1.3) * 8, y + radius * 0.52);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const count = profile.cv ? 58 : 34;
+    for (let i = 0; i < count; i++) {
+      const seed = i + 17;
+      const angle = seed * 2.399 + time * (0.12 + hashUnit(seed) * 0.18);
+      const orbit = radius * (0.12 + hashUnit(seed * 2.7) * 0.7);
+      const wobble = Math.sin(time * 1.9 + seed) * 10;
+      const px = x + Math.cos(angle) * (orbit + wobble);
+      const py = y + Math.sin(angle) * (orbit * 0.58 + wobble * 0.4);
+      const dotAlpha = strength * (0.05 + hashUnit(seed * 5.1) * 0.11);
+      const size = 1 + hashUnit(seed * 7.3) * 1.8;
+      const tone = i % 9 === 0 ? palette.amber : i % 3 === 0 ? palette.cyan : palette.paper;
+      ctx.fillStyle = `rgba(${tone}, ${dotAlpha})`;
+      ctx.fillRect(px, py, size, size);
+    }
+
     ctx.restore();
   }
 
@@ -924,6 +1015,7 @@
     const pose = poseGeometry(currentPose(poseTime));
     const previousPose = poseGeometry(currentPose(poseTime - 0.16));
 
+    updatePointerField(now);
     state.logoLevel = Math.max(state.logoLevel, cycle.logoTargetLevel);
     state.logoDensity = Math.max(state.logoDensity, cycle.logoTargetDensity);
     const logoEase = staticMode ? 1 : 0.105 + cycle.depositWindow * 0.035;
@@ -931,6 +1023,7 @@
     state.logoDisplayDensity = lerp(state.logoDisplayDensity, state.logoDensity, logoEase);
     setPhrase(cycle.phrase);
     drawBackground(time, cycle);
+    drawPointerField(time);
     if (!staticMode || force) updateMotionParticles(time, cycle, pose);
     drawCalibrationField(time, pose, cycle);
     drawLogoParticles(time, cycle);
@@ -991,6 +1084,35 @@
       { rootMargin: "80px 0px 80px 0px", threshold: 0 },
     );
     observer.observe(document.getElementById("hero") || canvas);
+  }
+
+  function setupPointerField() {
+    if (staticMode || reduceMotion || coarsePointer) return;
+    const hero = document.getElementById("hero") || canvas;
+    window.addEventListener("pointermove", (event) => {
+      const rect = hero.getBoundingClientRect();
+      const inside =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (!inside) {
+        state.pointer.active = false;
+        state.pointer.targetStrength = 0;
+        return;
+      }
+      const canvasRect = canvas.getBoundingClientRect();
+      state.pointer.targetX = clamp(event.clientX - canvasRect.left, 0, state.width);
+      state.pointer.targetY = clamp(event.clientY - canvasRect.top, 0, state.height);
+      state.pointer.targetStrength = 1;
+      state.pointer.active = true;
+      state.pointer.lastMove = performance.now();
+    }, { passive: true });
+
+    window.addEventListener("pointerleave", () => {
+      state.pointer.active = false;
+      state.pointer.targetStrength = 0;
+    }, { passive: true });
   }
 
   function setupLogoTargets() {
@@ -1105,6 +1227,7 @@
   setIntroInitial();
   setupLogoTargets();
   resize();
+  setupPointerField();
   setupObserver();
   setupScrollReveals();
   if (staticMode) render(performance.now(), true);
