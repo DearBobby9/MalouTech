@@ -187,8 +187,8 @@ body.static-hero .field-canvas {
 .hero-vignette {
   background:
     radial-gradient(circle at 64% 50%, transparent 0, transparent 44%, rgba(8, 12, 13, 0.22) 74%, rgba(8, 12, 13, 0.8) 100%),
-    radial-gradient(ellipse at 18% 70%, rgba(8, 12, 13, 0.68), rgba(8, 12, 13, 0.24) 40%, transparent 66%),
-    linear-gradient(90deg, rgba(8, 12, 13, 0.68), rgba(8, 12, 13, 0.08) 48%, rgba(8, 12, 13, 0.26));
+    radial-gradient(ellipse at 18% 70%, rgba(8, 12, 13, 0.42), rgba(8, 12, 13, 0.16) 40%, transparent 66%),
+    linear-gradient(90deg, rgba(8, 12, 13, 0.46), rgba(8, 12, 13, 0.08) 48%, rgba(8, 12, 13, 0.26));
 }
 
 .hero-content {

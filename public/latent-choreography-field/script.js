@@ -38,6 +38,7 @@
     lastFrame: 0,
     logoTargets: [],
     logoReady: false,
+    logoImage: null,
     pointer: { x: -999, y: -999, active: false },
     phrase: "drift",
     firstPaint: true,
@@ -220,8 +221,8 @@
     const w = state.width;
     const h = state.height;
     const isMobile = w < 720;
-    const scale = Math.min(w, h) * (isMobile ? 0.64 : 0.58);
-    const centerX = w * (isMobile ? 0.58 : 0.63);
+    const scale = Math.min(w, h) * (isMobile ? 0.58 : 0.54);
+    const centerX = w * (isMobile ? 0.62 : 0.68);
     const centerY = h * (isMobile ? 0.55 : 0.5);
     return [centerX + (point[0] - 0.5) * scale, centerY + point[1] * scale];
   }
@@ -244,13 +245,26 @@
     const w = state.width;
     const h = state.height;
     const isMobile = w < 720;
-    const scale = Math.min(w, h) * (isMobile ? 0.36 : 0.34);
-    const centerX = w * (isMobile ? 0.58 : 0.62);
-    const centerY = h * (isMobile ? 0.46 : 0.45);
+    const scale = Math.min(w, h) * (isMobile ? 0.27 : 0.31);
+    const centerX = w * (isMobile ? 0.42 : 0.32);
+    const centerY = h * (isMobile ? 0.43 : 0.48);
     return [
       centerX + point[0] * scale + jitter,
       centerY + point[1] * scale + jitter * 0.36,
     ];
+  }
+
+  function logoCenter() {
+    const w = state.width;
+    const h = state.height;
+    return [w * (w < 720 ? 0.42 : 0.32), h * (w < 720 ? 0.43 : 0.48)];
+  }
+
+  function logoRenderSize() {
+    const w = state.width;
+    const h = state.height;
+    const scale = Math.min(w, h) * (w < 720 ? 0.27 : 0.31);
+    return scale * 1.18;
   }
 
   function fallbackLogoTargets() {
@@ -312,6 +326,7 @@
     image.decoding = "async";
     image.onload = () => {
       try {
+        state.logoImage = image;
         state.logoTargets = sampleLogoTargets(image);
       } catch (error) {
         state.logoTargets = fallbackLogoTargets();
@@ -319,18 +334,19 @@
       state.logoReady = true;
     };
     image.onerror = () => {
+      state.logoImage = null;
       state.logoTargets = fallbackLogoTargets();
       state.logoReady = true;
     };
-    image.src = "../assets/brand/malou-mark.svg";
+    image.src = "../assets/brand/maloutech-logo-white.png";
   }
 
   function buildParticles() {
     const rand = mulberry32(8721);
     const area = state.width * state.height;
-    const base = coarsePointer ? 2800 : 9200;
-    const target = staticMode ? 2600 : Math.floor(area / (coarsePointer ? 190 : 118));
-    const count = clamp(target, coarsePointer ? 2200 : base, coarsePointer ? 5200 : 13200);
+    const base = coarsePointer ? 2400 : 6200;
+    const target = staticMode ? 2400 : Math.floor(area / (coarsePointer ? 230 : 175));
+    const count = clamp(target, coarsePointer ? 1800 : base, coarsePointer ? 4200 : 8800);
 
     state.particles = Array.from({ length: count }, (_, id) => {
       const band = rand();
@@ -353,6 +369,8 @@
         offset: (rand() - 0.5) * (band < 0.88 ? 15 : 48),
         affinity: band < 0.78 ? 1 : band < 0.94 ? 0.6 : 0.18,
         logoAffinity: band < 0.82 ? 1 : band < 0.96 ? 0.58 : 0.22,
+        logoAnchor: band < 0.28,
+        emitDelay: rand() * 0.18,
         radius: 0.13 + rand() * (coarsePointer ? 0.66 : 0.46),
         alpha: 0.07 + rand() * 0.28,
         tone: rand() < 0.8 ? palette.paper : rand() < 0.93 ? palette.cyan : palette.amber,
@@ -405,8 +423,8 @@
     const lightX = w * (0.58 + Math.sin(time * 0.05) * 0.1);
     const lightY = h * (0.24 + Math.cos(time * 0.04) * 0.05);
     const scanner = ctx.createRadialGradient(lightX, lightY, 0, lightX, lightY, Math.max(w, h) * 0.72);
-    scanner.addColorStop(0, `rgba(${palette.paper}, ${0.1 + cycleData.body * 0.035 + cycleData.logo * 0.045})`);
-    scanner.addColorStop(0.26, `rgba(${palette.cyan}, ${0.06 + cycleData.body * 0.035 + cycleData.logo * 0.04})`);
+    scanner.addColorStop(0, `rgba(${palette.paper}, ${0.1 + cycleData.body * 0.035 + cycleData.logoEnergy * 0.045})`);
+    scanner.addColorStop(0.26, `rgba(${palette.cyan}, ${0.06 + cycleData.body * 0.035 + cycleData.logoEnergy * 0.04})`);
     scanner.addColorStop(1, "rgba(8, 12, 13, 0)");
     ctx.fillStyle = scanner;
     ctx.fillRect(0, 0, w, h);
@@ -433,35 +451,47 @@
   }
 
   function cycleInfo(elapsed) {
-    const loop = 28000;
+    const loop = 30000;
     const raw = (elapsed % loop) / loop;
-    const startDance = 1 - smooth(raw / 0.18);
-    const gather = smooth((raw - 0.06) / 0.18);
-    const logoIn = smooth((raw - 0.58) / 0.1);
-    const logoOut = smooth((raw - 0.8) / 0.1);
-    const logo = clamp(logoIn * (1 - logoOut), 0, 1);
-    const follow = clamp(smooth((raw - 0.42) / 0.12) * (1 - smooth((raw - 0.66) / 0.08)), 0, 1);
-    const release = clamp(smooth((raw - 0.82) / 0.08) * (1 - smooth((raw - 0.94) / 0.06)), 0, 1);
-    const returnDance = smooth((raw - 0.9) / 0.08);
-    const body = clamp(Math.max(startDance, gather * (1 - logo * 0.94), returnDance), 0, 1);
-    const logoHold = logo * (1 - release * 0.86);
-    const flow = 1 - clamp(body * 0.44 + logoHold * 0.94, 0, 0.94);
-    const phrase = raw < 0.13
-      ? "dance"
-      : raw < 0.26
-        ? "drift"
-        : raw < 0.38
-          ? "gather"
-          : raw < 0.58
-            ? "dance"
-            : raw < 0.7
-              ? "trace"
-              : raw < 0.82
-                ? "mark"
-                : raw < 0.94
-                  ? "release"
-                  : "dance";
-    return { raw, startDance, body, follow, logo, logoHold, release, flow, phrase };
+    const cycleIndex = Math.floor(elapsed / loop);
+    const startDance = 1 - smooth(raw / 0.1);
+    const dance = clamp(smooth(raw / 0.08) * (1 - smooth((raw - 0.48) / 0.08)), 0, 1);
+    const deposit = clamp(smooth((raw - 0.48) / 0.12) * (1 - smooth((raw - 0.72) / 0.1)), 0, 1);
+    const logoPulse = clamp(smooth((raw - 0.58) / 0.08) * (1 - smooth((raw - 0.8) / 0.14)), 0, 1);
+    const release = clamp(smooth((raw - 0.76) / 0.1) * (1 - smooth((raw - 0.94) / 0.06)), 0, 1);
+    const returnDance = smooth((raw - 0.86) / 0.1);
+    const body = clamp(Math.max(startDance, dance * (1 - deposit * 0.86), returnDance), 0, 1);
+    const follow = clamp(dance + returnDance * 0.82 + release * 0.32, 0, 1);
+    const logoBase = clamp(0.28 + Math.min(cycleIndex, 4) * 0.065, 0.28, 0.54);
+    const logoEnergy = clamp(logoBase + logoPulse * 0.5 + deposit * 0.14, 0, 0.96);
+    const logoHold = deposit;
+    const flow = 1 - clamp(body * 0.34 + deposit * 0.56 + logoEnergy * 0.18, 0, 0.86);
+    const phrase = raw < 0.12
+      ? "emerge"
+      : raw < 0.48
+        ? "dance"
+        : raw < 0.66
+          ? "deposit"
+          : raw < 0.78
+            ? "mark"
+            : raw < 0.94
+              ? "emit"
+              : "reform";
+    return {
+      raw,
+      cycleIndex,
+      startDance,
+      dance,
+      body,
+      follow,
+      deposit,
+      logoPulse,
+      logoEnergy,
+      logoHold,
+      release,
+      flow,
+      phrase,
+    };
   }
 
   function drawMotionHints(pose, prevPose, cycleData) {
@@ -477,15 +507,15 @@
       const b = posePoint(pose[bName]);
       const pa = posePoint(prevPose[aName]);
       const pb = posePoint(prevPose[bName]);
-      const alpha = (0.022 * body + 0.052 * follow) * (1 - logoHold * 0.72);
+      const alpha = (0.046 * body + 0.086 * follow) * (1 - logoHold * 0.72);
       ctx.strokeStyle = `rgba(${palette.paper}, ${alpha})`;
-      ctx.lineWidth = 0.8 + follow * 0.55;
+      ctx.lineWidth = 0.95 + follow * 0.78;
       ctx.beginPath();
       ctx.moveTo(pa[0], pa[1]);
       ctx.quadraticCurveTo((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, pb[0], pb[1]);
       ctx.stroke();
 
-      ctx.strokeStyle = `rgba(${palette.cyan}, ${(0.032 * body + 0.074 * follow) * (1 - logoHold * 0.76)})`;
+      ctx.strokeStyle = `rgba(${palette.cyan}, ${(0.062 * body + 0.11 * follow) * (1 - logoHold * 0.76)})`;
       ctx.beginPath();
       ctx.moveTo(a[0], a[1]);
       ctx.lineTo(b[0], b[1]);
@@ -651,7 +681,7 @@
     const w = state.width;
     const h = state.height;
     const pointerActive = state.pointer.active && !coarsePointer;
-    const { body, follow, logoHold, release } = cycleData;
+    const { body, follow, logoHold, release, logoEnergy } = cycleData;
     const targets = state.logoTargets;
 
     for (const particle of state.particles) {
@@ -659,28 +689,38 @@
       let dx = current[0] * cycleData.flow;
       let dy = current[1] * cycleData.flow;
 
+      const logoTarget = targets[particle.logoIndex % targets.length];
+      const mark = logoPoint(logoTarget, particle.logoJitter);
       const target = boneTarget(pose, particle.bone, particle.boneT, particle.offset * (1 - follow * 0.34));
-      const pull = body * particle.affinity * (0.026 + follow * 0.012 + particle.radius * 0.004);
-      dx += (target[0] - particle.x) * pull;
-      dy += (target[1] - particle.y) * pull;
 
-      if (logoHold > 0.01) {
-        const logoTarget = targets[particle.logoIndex % targets.length];
-        const mark = logoPoint(logoTarget, particle.logoJitter);
-        const logoPull = logoHold * particle.logoAffinity * (0.074 + particle.radius * 0.008);
+      if (particle.logoAnchor) {
+        const anchorPull = (0.046 + logoEnergy * 0.06 + logoHold * 0.02) * particle.logoAffinity;
+        dx += (mark[0] - particle.x) * anchorPull;
+        dy += (mark[1] - particle.y) * anchorPull;
+      } else {
+        const emitBias = clamp((release - particle.emitDelay) * 1.5, 0, 1);
+        const pull = (body + emitBias * 0.72) * particle.affinity * (0.026 + follow * 0.012 + particle.radius * 0.004);
+        dx += (target[0] - particle.x) * pull;
+        dy += (target[1] - particle.y) * pull;
+      }
+
+      if (!particle.logoAnchor && logoHold > 0.01) {
+        const logoPull = logoHold * particle.logoAffinity * (0.082 + particle.radius * 0.008);
         dx += (mark[0] - particle.x) * logoPull;
         dy += (mark[1] - particle.y) * logoPull;
       }
 
-      if (release > 0.01) {
-        const centerX = w * (w < 720 ? 0.58 : 0.62);
-        const centerY = h * (w < 720 ? 0.46 : 0.45);
-        const vx = particle.x - centerX;
-        const vy = particle.y - centerY;
+      if (!particle.logoAnchor && release > 0.01) {
+        const vx = target[0] - mark[0];
+        const vy = target[1] - mark[1];
         const dist = Math.hypot(vx, vy) || 1;
-        const burst = release * (0.82 + particle.logoAffinity * 0.86);
-        dx += (vx / dist) * burst + Math.cos(time * 1.6 + particle.seed) * release * 0.34;
-        dy += (vy / dist) * burst + Math.sin(time * 1.4 + particle.seed) * release * 0.34;
+        const burst = release * (0.42 + particle.logoAffinity * 0.5);
+        dx += (vx / dist) * burst;
+        dy += (vy / dist) * burst;
+        dx += (target[0] - particle.x) * release * particle.affinity * 0.032;
+        dy += (target[1] - particle.y) * release * particle.affinity * 0.032;
+        dx += Math.cos(time * 1.6 + particle.seed) * release * 0.18;
+        dy += Math.sin(time * 1.4 + particle.seed) * release * 0.18;
       }
 
       if (pointerActive) {
@@ -696,8 +736,8 @@
         }
       }
 
-      const damping = 0.89 - logoHold * 0.05;
-      const response = 0.11 + logoHold * 0.04 + release * 0.05;
+      const damping = particle.logoAnchor ? 0.86 : 0.89 - logoHold * 0.05 + release * 0.02;
+      const response = particle.logoAnchor ? 0.12 + logoEnergy * 0.035 : 0.11 + logoHold * 0.04 + release * 0.06;
       particle.vx = particle.vx * damping + dx * response;
       particle.vy = particle.vy * damping + dy * response;
       particle.x += particle.vx;
@@ -711,15 +751,17 @@
   }
 
   function drawParticles(time, cycleData) {
-    const { body, follow, logoHold, release } = cycleData;
+    const { body, follow, logoHold, release, logoEnergy } = cycleData;
     const isMobile = state.width < 720;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (const particle of state.particles) {
       const shimmer = 0.72 + 0.28 * Math.sin(time * 1.8 + particle.seed);
-      const form = Math.max(body, logoHold);
-      const alpha = particle.alpha * shimmer * (0.5 + form * 0.82 + follow * 0.18) * (1 + release * 0.12);
-      const r = particle.radius * (isMobile ? 1.08 : 1) * (1 + form * particle.affinity * 0.24 + logoHold * 0.34);
+      const form = particle.logoAnchor ? logoEnergy : Math.max(body, logoHold, release * 0.6);
+      const logoVisibility = 0.72 + cycleData.logoPulse * 0.88 + logoHold * 0.55;
+      const visibility = particle.logoAnchor ? logoVisibility : 1.36;
+      const alpha = particle.alpha * visibility * shimmer * (0.5 + form * 0.82 + follow * 0.18) * (1 + release * 0.12);
+      const r = particle.radius * (isMobile ? 1.08 : 1) * (1 + form * particle.affinity * 0.24 + logoHold * 0.34 + (particle.logoAnchor ? logoEnergy * 0.42 : 0));
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, r, 0, Math.PI * 2);
@@ -753,24 +795,49 @@
   }
 
   function drawLogoConstellation(cycleData) {
-    const { logoHold, release } = cycleData;
-    if (logoHold <= 0.02 || !state.logoTargets.length || release > 0.18) return;
+    const { logoEnergy, logoPulse, deposit, release } = cycleData;
+    if (!state.logoTargets.length) return;
 
-    const alpha = logoHold * Math.max(0, 1 - release * 4);
-    const step = Math.max(1, Math.ceil(state.logoTargets.length / (state.width < 720 ? 780 : 1300)));
+    const alpha = clamp(0.08 + logoEnergy * 0.42 + logoPulse * 0.36 + deposit * 0.24, 0.14, 0.96);
+    const step = Math.max(1, Math.ceil(state.logoTargets.length / (state.width < 720 ? 620 : 900)));
     const pointRadius = state.width < 720 ? 0.75 : 0.62;
+    const [cx, cy] = logoCenter();
+    const ring = Math.min(state.width, state.height) * (state.width < 720 ? 0.24 : 0.28);
 
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
+    ctx.shadowColor = `rgba(${palette.cyan}, ${0.24 + logoPulse * 0.36})`;
+    ctx.shadowBlur = 11 + logoPulse * 26 + release * 8;
+
+    if (state.logoImage) {
+      const size = logoRenderSize();
+      ctx.globalAlpha = clamp(0.025 + logoEnergy * 0.06 + logoPulse * 0.1 + deposit * 0.08, 0.04, 0.24);
+      ctx.drawImage(state.logoImage, cx - size / 2, cy - size / 2, size, size);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.strokeStyle = `rgba(${palette.cyan}, ${0.032 + alpha * 0.055})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring * (0.78 + logoPulse * 0.035), 0, Math.PI * 2);
+    ctx.stroke();
+
     for (let i = 0; i < state.logoTargets.length; i += step) {
       const target = state.logoTargets[i];
       const [x, y] = logoPoint(target, Math.sin(i * 0.17) * 0.6);
       const tone = i % 17 === 0 ? palette.cyan : i % 23 === 0 ? palette.amber : palette.paper;
-      ctx.fillStyle = `rgba(${tone}, ${0.055 + alpha * 0.22})`;
+      ctx.fillStyle = `rgba(${tone}, ${0.07 + alpha * 0.34})`;
       ctx.beginPath();
-      ctx.arc(x, y, pointRadius * (0.75 + alpha * 0.7), 0, Math.PI * 2);
+      ctx.arc(x, y, pointRadius * (0.95 + alpha * 1.12 + logoPulse * 0.62), 0, Math.PI * 2);
       ctx.fill();
     }
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(${palette.paper}, ${0.026 + alpha * 0.04})`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring * (0.52 + deposit * 0.02), 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -805,7 +872,7 @@
       return;
     }
     const elapsed = now - state.start;
-    const targetGap = elapsed < 16000 ? 1000 / 38 : 1000 / 28;
+    const targetGap = elapsed < 16000 ? 1000 / 30 : 1000 / 24;
     if (now - state.lastFrame >= targetGap) {
       state.lastFrame = now;
       render(now);
