@@ -72,7 +72,7 @@ img {
   padding: 24px clamp(20px, 4vw, 64px);
   color: rgba(238, 231, 217, 0.78);
   background: linear-gradient(180deg, rgba(8, 12, 13, 0.78), rgba(8, 12, 13, 0));
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px);
 }
 
 .brand {
@@ -89,7 +89,7 @@ img {
 .brand img {
   width: 20px;
   height: 20px;
-  filter: drop-shadow(0 0 18px rgba(103, 197, 196, 0.14));
+  filter: drop-shadow(0 0 8px rgba(103, 197, 196, 0.12));
 }
 
 .nav-links {
@@ -146,6 +146,7 @@ img {
   height: 100%;
   display: block;
   background: var(--ink);
+  contain: paint;
 }
 
 .hero-still {
@@ -177,7 +178,7 @@ body.static-hero .field-canvas {
 }
 
 .hero-grain {
-  opacity: 0.11;
+  opacity: 0.08;
   background-image:
     radial-gradient(circle, rgba(238, 231, 217, 0.28) 0 1px, transparent 1px);
   background-size: 11px 11px;

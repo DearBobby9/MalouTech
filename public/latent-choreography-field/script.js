@@ -4,7 +4,7 @@
   const phaseReadout = document.getElementById("phaseReadout");
   if (!canvas) return;
 
-  const ctx = canvas.getContext("2d", { alpha: false });
+  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
   if (!ctx) {
     document.body.classList.add("static-hero");
     return;
@@ -18,6 +18,50 @@
     ((navigator.deviceMemory && navigator.deviceMemory <= 4) ||
       (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
   const staticMode = reduceMotion || params.has("static") || lowPowerDevice;
+  const qualityName = params.get("quality") === "high"
+    ? "high"
+    : params.get("quality") === "low" || lowPowerDevice
+      ? "low"
+      : "balanced";
+  const qualityProfiles = {
+    low: {
+      dprCap: 1,
+      particleMin: 900,
+      particleBase: 1100,
+      particleMax: 1800,
+      areaDivisor: 520,
+      logoDrawCount: 260,
+      contourLines: 3,
+      contourSteps: 78,
+      fpsEarly: 22,
+      fpsRest: 18,
+    },
+    balanced: {
+      dprCap: 1.25,
+      particleMin: 1800,
+      particleBase: 2400,
+      particleMax: 4200,
+      areaDivisor: 380,
+      logoDrawCount: 440,
+      contourLines: 4,
+      contourSteps: 112,
+      fpsEarly: 24,
+      fpsRest: 20,
+    },
+    high: {
+      dprCap: 1.5,
+      particleMin: 2600,
+      particleBase: 3600,
+      particleMax: 6200,
+      areaDivisor: 250,
+      logoDrawCount: 680,
+      contourLines: 5,
+      contourSteps: 150,
+      fpsEarly: 30,
+      fpsRest: 24,
+    },
+  };
+  const quality = qualityProfiles[qualityName];
 
   const palette = {
     ink: "#080c0d",
@@ -227,18 +271,35 @@
     return [centerX + (point[0] - 0.5) * scale, centerY + point[1] * scale];
   }
 
-  function boneTarget(pose, boneIndex, t, normalOffset) {
-    const [aName, bName] = bones[boneIndex % bones.length];
-    const a = posePoint(pose[aName]);
-    const b = posePoint(pose[bName]);
-    const x = lerp(a[0], b[0], t);
-    const y = lerp(a[1], b[1], t);
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const length = Math.hypot(dx, dy) || 1;
-    const nx = -dy / length;
-    const ny = dx / length;
-    return [x + nx * normalOffset, y + ny * normalOffset];
+  function poseGeometry(pose) {
+    const points = {};
+    for (const key of Object.keys(pose)) {
+      points[key] = posePoint(pose[key]);
+    }
+    const segments = bones.map(([aName, bName]) => {
+      const a = points[aName];
+      const b = points[bName];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const length = Math.hypot(dx, dy) || 1;
+      return {
+        ax: a[0],
+        ay: a[1],
+        dx,
+        dy,
+        nx: -dy / length,
+        ny: dx / length,
+      };
+    });
+    return { points, segments };
+  }
+
+  function boneTargetFromGeometry(geometry, boneIndex, t, normalOffset) {
+    const segment = geometry.segments[boneIndex % geometry.segments.length];
+    return [
+      segment.ax + segment.dx * t + segment.nx * normalOffset,
+      segment.ay + segment.dy * t + segment.ny * normalOffset,
+    ];
   }
 
   function logoPoint(point, jitter = 0) {
@@ -292,7 +353,7 @@
   }
 
   function sampleLogoTargets(image) {
-    const size = 512;
+    const size = 384;
     const offscreen = document.createElement("canvas");
     offscreen.width = size;
     offscreen.height = size;
@@ -303,7 +364,7 @@
     sampleCtx.drawImage(image, 0, 0, size, size);
     const pixels = sampleCtx.getImageData(0, 0, size, size).data;
     const targets = [];
-    const step = 4;
+    const step = qualityName === "high" ? 5 : 6;
 
     for (let y = 0; y < size; y += step) {
       for (let x = 0; x < size; x += step) {
@@ -315,7 +376,21 @@
       }
     }
 
-    return targets.length > 300 ? targets : fallbackLogoTargets();
+    if (targets.length <= 300) return fallbackLogoTargets();
+    const maxTargets = qualityName === "high" ? 1500 : qualityName === "low" ? 760 : 1100;
+    if (targets.length <= maxTargets) return targets;
+    const stride = targets.length / maxTargets;
+    return Array.from({ length: maxTargets }, (_, index) => targets[Math.floor(index * stride)]);
+  }
+
+  function refreshParticleLogoMarks() {
+    if (!state.particles.length || !state.logoTargets.length) return;
+    for (const particle of state.particles) {
+      const logoTarget = state.logoTargets[particle.logoIndex % state.logoTargets.length];
+      const mark = logoPoint(logoTarget, particle.logoJitter);
+      particle.logoX = mark[0];
+      particle.logoY = mark[1];
+    }
   }
 
   function loadLogoTargets() {
@@ -332,6 +407,7 @@
         state.logoTargets = fallbackLogoTargets();
       }
       state.logoReady = true;
+      refreshParticleLogoMarks();
     };
     image.onerror = () => {
       state.logoImage = null;
@@ -344,9 +420,13 @@
   function buildParticles() {
     const rand = mulberry32(8721);
     const area = state.width * state.height;
-    const base = coarsePointer ? 2400 : 6200;
-    const target = staticMode ? 2400 : Math.floor(area / (coarsePointer ? 230 : 175));
-    const count = clamp(target, coarsePointer ? 1800 : base, coarsePointer ? 4200 : 8800);
+    const mobile = coarsePointer || state.width < 720;
+    const min = mobile ? Math.round(quality.particleMin * 0.58) : quality.particleMin;
+    const base = mobile ? Math.round(quality.particleBase * 0.62) : quality.particleBase;
+    const max = mobile ? Math.round(quality.particleMax * 0.62) : quality.particleMax;
+    const divisor = mobile ? quality.areaDivisor * 1.55 : quality.areaDivisor;
+    const target = staticMode ? Math.round(base * 0.72) : Math.floor(area / divisor);
+    const count = clamp(target, min, max);
 
     state.particles = Array.from({ length: count }, (_, id) => {
       const band = rand();
@@ -371,16 +451,19 @@
         logoAffinity: band < 0.82 ? 1 : band < 0.96 ? 0.58 : 0.22,
         logoAnchor: band < 0.28,
         emitDelay: rand() * 0.18,
+        logoX: x,
+        logoY: y,
         radius: 0.13 + rand() * (coarsePointer ? 0.66 : 0.46),
         alpha: 0.07 + rand() * 0.28,
         tone: rand() < 0.8 ? palette.paper : rand() < 0.93 ? palette.cyan : palette.amber,
       };
     });
+    refreshParticleLogoMarks();
   }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    state.dpr = Math.min(window.devicePixelRatio || 1, quality.dprCap);
     state.width = Math.max(1, Math.floor(rect.width));
     state.height = Math.max(1, Math.floor(rect.height));
     canvas.width = Math.floor(state.width * state.dpr);
@@ -397,13 +480,9 @@
     const h = state.height;
     const sx = x / w;
     const sy = y / h;
-    const curl =
-      Math.sin(sy * 7.2 + time * 0.46 + seed * 0.01) +
-      Math.cos(sx * 5.8 - time * 0.34 + seed * 0.013);
-    const angle = curl * Math.PI * 0.48 + Math.sin(time * 0.12 + seed) * 0.18;
-    const speed = 0.26 + 0.22 * Math.sin(time * 0.2 + seed);
-    const current = 0.12 + 0.18 * Math.sin(sy * 2.6 + time * 0.24);
-    return [Math.cos(angle) * speed + current, Math.sin(angle) * speed];
+    const wave = Math.sin(sy * 5.4 + time * 0.31 + seed * 0.01);
+    const cross = Math.cos(sx * 4.6 - time * 0.22 + seed * 0.007);
+    return [0.18 + wave * 0.13 + cross * 0.09, wave * 0.08 + cross * 0.12];
   }
 
   function drawAtmosphere(time, cycleData) {
@@ -494,7 +573,7 @@
     };
   }
 
-  function drawMotionHints(pose, prevPose, cycleData) {
+  function drawMotionHints(geometry, prevGeometry, cycleData) {
     const { body, follow, logoHold } = cycleData;
     if (body <= 0.02) return;
     ctx.save();
@@ -503,10 +582,10 @@
     ctx.lineJoin = "round";
 
     for (const [aName, bName] of bones) {
-      const a = posePoint(pose[aName]);
-      const b = posePoint(pose[bName]);
-      const pa = posePoint(prevPose[aName]);
-      const pb = posePoint(prevPose[bName]);
+      const a = geometry.points[aName];
+      const b = geometry.points[bName];
+      const pa = prevGeometry.points[aName];
+      const pb = prevGeometry.points[bName];
       const alpha = (0.046 * body + 0.086 * follow) * (1 - logoHold * 0.72);
       ctx.strokeStyle = `rgba(${palette.paper}, ${alpha})`;
       ctx.lineWidth = 0.95 + follow * 0.78;
@@ -524,8 +603,8 @@
     ctx.restore();
   }
 
-  function poseBounds(pose) {
-    const points = Object.values(pose).map(posePoint);
+  function poseBounds(geometry) {
+    const points = Object.values(geometry.points);
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -587,12 +666,12 @@
     ctx.restore();
   }
 
-  function drawCvPoseOverlay(time, pose, prevPose, cycleData) {
+  function drawCvPoseOverlay(time, geometry, prevGeometry, cycleData) {
     const { body, follow, logoHold, release } = cycleData;
     const alpha = clamp((body * 0.32 + follow * 0.78) * (1 - logoHold * 0.96) * (1 - release * 0.72), 0, 1);
     if (alpha <= 0.045) return;
 
-    const bounds = poseBounds(pose);
+    const bounds = poseBounds(geometry);
     const landmarkKeys = [
       "head",
       "neck",
@@ -621,7 +700,7 @@
 
     for (let i = 0; i < landmarkKeys.length; i++) {
       const key = landmarkKeys[i];
-      const [x, y] = posePoint(pose[key]);
+      const [x, y] = geometry.points[key];
       const pulse = 0.68 + 0.32 * Math.sin(time * 2.1 + i * 0.9);
       const confidence = 0.72 + 0.22 * Math.sin(time * 0.8 + i * 1.7);
       const ring = 3.4 + confidence * 2.2 + follow * 1.4;
@@ -646,8 +725,8 @@
     }
 
     for (const key of vectorKeys) {
-      const [x, y] = posePoint(pose[key]);
-      const [px, py] = posePoint(prevPose[key]);
+      const [x, y] = geometry.points[key];
+      const [px, py] = prevGeometry.points[key];
       const vx = (x - px) * 3.2;
       const vy = (y - py) * 3.2;
 
@@ -677,26 +756,25 @@
     drawCvLabel("15 LANDMARKS  CONF 0.92", bounds.x + bounds.width - 178, bounds.y + bounds.height + 18, 0.26 * alpha);
   }
 
-  function updateParticles(time, cycleData, pose) {
+  function updateParticles(time, cycleData, geometry) {
     const w = state.width;
     const h = state.height;
     const pointerActive = state.pointer.active && !coarsePointer;
     const { body, follow, logoHold, release, logoEnergy } = cycleData;
-    const targets = state.logoTargets;
 
     for (const particle of state.particles) {
       const current = flowAt(particle.x, particle.y, time, particle.seed);
       let dx = current[0] * cycleData.flow;
       let dy = current[1] * cycleData.flow;
 
-      const logoTarget = targets[particle.logoIndex % targets.length];
-      const mark = logoPoint(logoTarget, particle.logoJitter);
-      const target = boneTarget(pose, particle.bone, particle.boneT, particle.offset * (1 - follow * 0.34));
+      const markX = particle.logoX;
+      const markY = particle.logoY;
+      const target = boneTargetFromGeometry(geometry, particle.bone, particle.boneT, particle.offset * (1 - follow * 0.34));
 
       if (particle.logoAnchor) {
         const anchorPull = (0.046 + logoEnergy * 0.06 + logoHold * 0.02) * particle.logoAffinity;
-        dx += (mark[0] - particle.x) * anchorPull;
-        dy += (mark[1] - particle.y) * anchorPull;
+        dx += (markX - particle.x) * anchorPull;
+        dy += (markY - particle.y) * anchorPull;
       } else {
         const emitBias = clamp((release - particle.emitDelay) * 1.5, 0, 1);
         const pull = (body + emitBias * 0.72) * particle.affinity * (0.026 + follow * 0.012 + particle.radius * 0.004);
@@ -706,13 +784,13 @@
 
       if (!particle.logoAnchor && logoHold > 0.01) {
         const logoPull = logoHold * particle.logoAffinity * (0.082 + particle.radius * 0.008);
-        dx += (mark[0] - particle.x) * logoPull;
-        dy += (mark[1] - particle.y) * logoPull;
+        dx += (markX - particle.x) * logoPull;
+        dy += (markY - particle.y) * logoPull;
       }
 
       if (!particle.logoAnchor && release > 0.01) {
-        const vx = target[0] - mark[0];
-        const vy = target[1] - mark[1];
+        const vx = target[0] - markX;
+        const vy = target[1] - markY;
         const dist = Math.hypot(vx, vy) || 1;
         const burst = release * (0.42 + particle.logoAffinity * 0.5);
         dx += (vx / dist) * burst;
@@ -776,13 +854,13 @@
     const h = state.height;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    for (let c = 0; c < 5; c++) {
+    for (let c = 0; c < quality.contourLines; c++) {
       ctx.lineWidth = 0.55 + c * 0.06;
-      const tone = c === 3 ? palette.cyan : c === 4 ? palette.amber : palette.paper;
+      const tone = c === quality.contourLines - 2 ? palette.cyan : c === quality.contourLines - 1 ? palette.amber : palette.paper;
       ctx.strokeStyle = `rgba(${tone}, ${(0.03 + body * 0.026 + release * 0.024) * (1 - logoHold * 0.62)})`;
       ctx.beginPath();
-      for (let i = 0; i <= 190; i++) {
-        const t = i / 190;
+      for (let i = 0; i <= quality.contourSteps; i++) {
+        const t = i / quality.contourSteps;
         const x = w * (0.04 + t * 0.66);
         const wave = Math.sin(t * Math.PI * (3.1 + c * 0.3) + time * (0.5 + c * 0.08)) * (8 + c * 5);
         const y = h * (0.58 + (c - 2) * 0.025) + wave + Math.sin(t * 7 + time * 0.22 + c) * 14;
@@ -799,7 +877,8 @@
     if (!state.logoTargets.length) return;
 
     const alpha = clamp(0.08 + logoEnergy * 0.42 + logoPulse * 0.36 + deposit * 0.24, 0.14, 0.96);
-    const step = Math.max(1, Math.ceil(state.logoTargets.length / (state.width < 720 ? 620 : 900)));
+    const maxLogoDots = state.width < 720 ? Math.round(quality.logoDrawCount * 0.62) : quality.logoDrawCount;
+    const step = Math.max(1, Math.ceil(state.logoTargets.length / maxLogoDots));
     const pointRadius = state.width < 720 ? 0.75 : 0.62;
     const [cx, cy] = logoCenter();
     const ring = Math.min(state.width, state.height) * (state.width < 720 ? 0.24 : 0.28);
@@ -855,14 +934,16 @@
     const poseTime = time * 0.16 + Math.sin(time * 0.28) * 0.08;
     const pose = currentPose(poseTime);
     const prevPose = currentPose(poseTime - 0.18);
+    const geometry = poseGeometry(pose);
+    const prevGeometry = poseGeometry(prevPose);
 
     setPhrase(cycleData.phrase);
     drawAtmosphere(time, cycleData);
     drawSoftContours(time, cycleData);
-    drawMotionHints(pose, prevPose, cycleData);
-    if (!staticMode || force) updateParticles(time, cycleData, pose);
+    drawMotionHints(geometry, prevGeometry, cycleData);
+    if (!staticMode || force) updateParticles(time, cycleData, geometry);
     drawParticles(time, cycleData);
-    drawCvPoseOverlay(time, pose, prevPose, cycleData);
+    drawCvPoseOverlay(time, geometry, prevGeometry, cycleData);
     drawLogoConstellation(cycleData);
   }
 
@@ -872,7 +953,7 @@
       return;
     }
     const elapsed = now - state.start;
-    const targetGap = elapsed < 16000 ? 1000 / 30 : 1000 / 24;
+    const targetGap = elapsed < 16000 ? 1000 / quality.fpsEarly : 1000 / quality.fpsRest;
     if (now - state.lastFrame >= targetGap) {
       state.lastFrame = now;
       render(now);
