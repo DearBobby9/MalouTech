@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MalouTech - Latent Choreography Field</title>
+  <meta
+    name="description"
+    content="A MalouTech homepage study where motion gathers from a living field of particles."
+  />
+  <link rel="icon" href="../assets/brand/icons/favicon-32.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="site-nav" aria-label="Primary navigation">
+    <a class="brand" href="#top" aria-label="MalouTech home">
+      <img src="../assets/brand/malou-mark.svg" alt="" />
+      <span>MalouTech</span>
+    </a>
+    <div class="nav-links">
+      <a href="#publications">Work</a>
+      <a href="#method">Research</a>
+      <a href="#mission">Mission</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero" id="hero" aria-label="Latent choreography field">
+      <canvas id="fieldCanvas" class="field-canvas" aria-hidden="true"></canvas>
+      <img class="hero-still" id="heroStill" src="hero-still.svg" alt="" aria-hidden="true" />
+      <div class="hero-grain" aria-hidden="true"></div>
+      <div class="hero-vignette" aria-hidden="true"></div>
+
+      <div class="hero-content">
+        <h1 class="hero-title" aria-label="Motion becomes a medium.">
+          <span>Motion becomes a medium.</span>
+        </h1>
+        <p class="hero-copy reveal-line">
+          Nonprofit research in dance, computation, and XR.
+        </p>
+      </div>
+
+      <div class="hero-readout" aria-hidden="true">
+        <span>live field</span>
+        <strong id="phaseReadout">drift</strong>
+      </div>
+
+      <div class="scroll-cue" aria-hidden="true">
+        <span>Work</span>
+        <i></i>
+      </div>
+    </section>
+
+    <section class="method-section page-section" id="method">
+      <div class="section-header reveal">
+        <p class="eyebrow">Research Method</p>
+        <h2>Movement is treated as material, model, and record.</h2>
+      </div>
+
+      <div class="method-map reveal">
+        <article>
+          <span>01</span>
+          <h3>Capture</h3>
+          <p>Music, pose, image, and interaction traces enter as movement material.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Shape</h3>
+          <p>Temporal structure and kinematics are shaped into a readable motion field.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Generate</h3>
+          <p>Dance phrases, group coherence, and appearance move through specialized model paths.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Study</h3>
+          <p>Generated movement is inspected through papers, prototypes, and spatial experiments.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="publication-section page-section" id="publications">
+      <div class="section-header reveal">
+        <p class="eyebrow">Publication Evidence</p>
+        <h2>The research record stays concrete.</h2>
+      </div>
+
+      <div class="paper-stack">
+        <article class="paper-row reveal">
+          <figure>
+            <img src="../assets/papers/display/mace-dance-720.webp" alt="" loading="lazy" />
+          </figure>
+          <div>
+            <p>SIGGRAPH 2026 / Motion + Appearance</p>
+            <h3>MACE-Dance: Motion-Appearance Cascaded Experts for Music-Driven Dance Video Generation</h3>
+            <a href="https://sun-happy-ykx.github.io/MACE-Dance/">Project page</a>
+          </div>
+        </article>
+
+        <article class="paper-row reveal">
+          <figure>
+            <img src="../assets/papers/display/personalized-dance-720.webp" alt="" loading="lazy" />
+          </figure>
+          <div>
+            <p>IEEE VR 2026 / XR Motion</p>
+            <h3>Personalized Dance Synthesis Based on Physical and Cognitive Intensities</h3>
+            <a href="https://xulongt.github.io/ARDance26/">Project page</a>
+          </div>
+        </article>
+
+        <article class="paper-row reveal">
+          <figure>
+            <img src="../assets/papers/display/megadance-720.webp" alt="" loading="lazy" />
+          </figure>
+          <div>
+            <p>NeurIPS 2025 / Mixture of Experts</p>
+            <h3>MEGADance: Mixture-of-Experts Architecture for Genre-Aware 3D Dance Generation</h3>
+            <a href="https://github.com/XulongT/MEGADance">Code</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="mission-section page-section" id="mission">
+      <div class="mission-grid">
+        <div class="section-header reveal">
+          <p class="eyebrow">Mission</p>
+          <h2>Open research for movement and spatial media.</h2>
+        </div>
+        <div class="mission-copy reveal">
+          <p>
+            MalouTech operates as a nonprofit research company. The lab publishes
+            papers, shares project artifacts when possible, and collaborates with
+            partners who care about transparent evaluation.
+          </p>
+          <dl>
+            <div>
+              <dt>Open artifacts</dt>
+              <dd>Project pages, code, papers, and visual results remain part of the public record.</dd>
+            </div>
+            <div>
+              <dt>Research first</dt>
+              <dd>The website foregrounds methods and evidence over marketing claims.</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-section page-section" id="contact">
+      <div class="contact-panel reveal">
+        <p class="eyebrow">Contact</p>
+        <h2>Research inquiries and collaboration</h2>
+        <a class="contact-link" href="mailto:admin@maloutech.com">admin@maloutech.com</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
