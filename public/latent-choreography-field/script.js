@@ -315,7 +315,7 @@
     const w = state.width;
     const h = state.height;
     const isMobile = w < 720;
-    const scale = Math.min(w, h) * (isMobile ? 0.38 : 0.44);
+    const scale = Math.min(w, h) * (isMobile ? 0.42 : 0.5);
     const cx = w * (isMobile ? 0.39 : 0.29);
     const cy = h * (isMobile ? 0.37 : 0.405);
     return [cx + target[0] * scale + jitter, cy + target[1] * scale + jitter * 0.32];
