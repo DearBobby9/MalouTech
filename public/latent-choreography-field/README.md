@@ -7,9 +7,10 @@ Concept:
 1. A quiet field of fine particles drifts in the first viewport.
 2. The particles gather around a short dance phrase.
 3. A motion skeleton appears through particle density and faint trails.
-4. The body dissolves back into flow.
-5. Text stays small so the first impression comes from the moving field.
-6. Research, publication, mission, and contact sections open below the fold.
+4. The field tightens into the MalouTech mark.
+5. The mark releases back into the moving body.
+6. Text stays small so the first impression comes from the moving field.
+7. Research, publication, mission, and contact sections open below the fold.
 
 Open locally through Vite:
 
