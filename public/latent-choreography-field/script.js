@@ -473,6 +473,7 @@
       logoIndex: Math.floor((id / logoCount) * Math.max(1, state.logoTargets.length)) + Math.floor(rand() * 5),
       logoJitter: (rand() - 0.5) * 1.2,
       seed: rand() * 1000,
+      anchor: id % 3 === 0,
       reveal: rand(),
       tone: rand() < 0.84 ? palette.paper : rand() < 0.95 ? palette.cyan : palette.amber,
       size: 0.95 + rand() * 1.25,
@@ -860,8 +861,9 @@
       const tx = -ny;
       const ty = nx;
       const phase = time * 1.9 + radius * 0.024 + particle.seed * 0.033;
-      const pulse = Math.sin(phase) * livingRange;
-      const counterPulse = Math.sin(time * 0.83 + particle.seed * 0.19) * livingRange * 0.36;
+      const anchorHold = particle.anchor ? 0.38 : 1;
+      const pulse = Math.sin(phase) * livingRange * anchorHold;
+      const counterPulse = Math.sin(time * 0.83 + particle.seed * 0.19) * livingRange * 0.36 * anchorHold;
       let homeX = particle.baseX + nx * pulse + tx * counterPulse;
       let homeY = particle.baseY + ny * pulse * 0.72 + ty * counterPulse;
       let kickX = 0;
@@ -873,14 +875,15 @@
         const vy = particle.y - pointer.y;
         const distance = Math.hypot(vx, vy) || 1;
         const pull = pointer.strength / (1 + Math.pow(distance / 390, 2));
+        const response = particle.anchor ? 0.42 : 1;
         const pnx = vx / distance;
         const pny = vy / distance;
-        homeX -= pnx * pull * 13;
-        homeY -= pny * pull * 9;
-        kickX -= pnx * pull * 2.15;
-        kickY -= pny * pull * 1.55;
-        kickX += -pny * pull * 1.2 * Math.sin(time * 0.78 + particle.seed);
-        kickY += pnx * pull * 0.82 * Math.sin(time * 0.78 + particle.seed);
+        homeX -= pnx * pull * 13 * response;
+        homeY -= pny * pull * 9 * response;
+        kickX -= pnx * pull * 2.15 * response;
+        kickY -= pny * pull * 1.55 * response;
+        kickX += -pny * pull * 1.2 * response * Math.sin(time * 0.78 + particle.seed);
+        kickY += pnx * pull * 0.82 * response * Math.sin(time * 0.78 + particle.seed);
         energy += pull * 0.86;
       }
 
@@ -899,17 +902,20 @@
         const falloff = Math.pow(1 - progress, 0.92);
         const phaseWave = Math.sin((distance - radiusAtWave) * 0.038 - progress * Math.PI * 0.72);
         const waveForce = phaseWave * smooth(band) * falloff * wave.force;
+        const response = particle.anchor ? 0.46 : 1;
         const wnx = vx / distance;
         const wny = vy / distance;
-        kickX += wnx * waveForce * 6.2;
-        kickY += wny * waveForce * 4.8;
-        homeX += wnx * Math.abs(waveForce) * 11.5;
-        homeY += wny * Math.abs(waveForce) * 8.7;
+        kickX += wnx * waveForce * 6.2 * response;
+        kickY += wny * waveForce * 4.8 * response;
+        homeX += wnx * Math.abs(waveForce) * 11.5 * response;
+        homeY += wny * Math.abs(waveForce) * 8.7 * response;
         energy += Math.abs(waveForce) * 1.24;
       }
 
-      particle.vx = (particle.vx + (homeX - particle.x) * spring + kickX) * damping;
-      particle.vy = (particle.vy + (homeY - particle.y) * spring + kickY) * damping;
+      const particleSpring = particle.anchor ? spring * 1.45 : spring;
+      const particleDamping = particle.anchor ? damping * 0.92 : damping;
+      particle.vx = (particle.vx + (homeX - particle.x) * particleSpring + kickX) * particleDamping;
+      particle.vy = (particle.vy + (homeY - particle.y) * particleSpring + kickY) * particleDamping;
       particle.x += particle.vx;
       particle.y += particle.vy;
       particle.energy = lerp(particle.energy, clamp(energy, 0, 1.8), 0.24);
@@ -927,6 +933,29 @@
     const breath = 0.5 + 0.5 * Math.sin(time * 2.15);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
+
+    if (precision > 0.04) {
+      for (let i = 0; i < state.logoLimit; i++) {
+        const particle = state.logoParticles[i];
+        if (!particle.anchor) continue;
+        const revealAlpha = smooth((logoDensity - particle.reveal) / 0.14);
+        if (revealAlpha <= 0.006) continue;
+        const dx = particle.baseX - center[0];
+        const dy = particle.baseY - center[1];
+        const radius = Math.hypot(dx, dy) || 1;
+        const nx = dx / radius;
+        const ny = dy / radius;
+        const anchorPulse = Math.sin(time * 1.08 + radius * 0.014 + particle.seed) * (0.42 + precision * 0.82);
+        const anchorSweep = Math.cos(time * 0.62 + particle.seed * 0.31) * (0.22 + precision * 0.36);
+        const px = particle.baseX + nx * anchorPulse - ny * anchorSweep;
+        const py = particle.baseY + ny * anchorPulse * 0.72 + nx * anchorSweep;
+        const anchorAlpha = logoAlpha * revealAlpha * (0.16 + precision * 0.26) * (particle.tone === palette.paper ? 1 : 1.18);
+        const anchorSize = particle.size * (0.68 + precision * 0.34);
+        ctx.fillStyle = `rgba(${particle.tone}, ${anchorAlpha})`;
+        ctx.fillRect(px, py, anchorSize, anchorSize);
+      }
+    }
+
     for (let i = 0; i < state.logoLimit; i++) {
       const particle = state.logoParticles[i];
       const revealAlpha = smooth((logoDensity - particle.reveal) / 0.12);
@@ -941,13 +970,14 @@
       const breathe = Math.sin(time * 1.34 + radius * 0.018 + particle.seed * 0.04) * (0.78 + logoDensity * 1.2);
       const breatheX = (dx / radius) * breathe;
       const breatheY = (dy / radius) * breathe;
+      const motionScale = particle.anchor ? 0.42 : 1;
       const jitterX =
-        Math.sin(time * 1.16 + particle.seed) * cloudMotion +
-        Math.sin(time * 2.1 + particle.seed * 0.37) * cloudMotion * 0.42;
+        (Math.sin(time * 1.16 + particle.seed) * cloudMotion +
+        Math.sin(time * 2.1 + particle.seed * 0.37) * cloudMotion * 0.42) * motionScale;
       const jitterY =
-        Math.cos(time * 0.94 + particle.seed * 0.72) * cloudMotion +
-        Math.cos(time * 1.8 + particle.seed * 0.51) * cloudMotion * 0.34;
-      const alpha = logoAlpha * revealAlpha * shimmer * logoGlow * (0.86 + breath * 0.22 + particle.energy * 0.22) * (particle.tone === palette.paper ? 1.02 : 1.24);
+        (Math.cos(time * 0.94 + particle.seed * 0.72) * cloudMotion +
+        Math.cos(time * 1.8 + particle.seed * 0.51) * cloudMotion * 0.34) * motionScale;
+      const alpha = logoAlpha * revealAlpha * shimmer * logoGlow * (0.86 + breath * 0.22 + particle.energy * 0.22) * (particle.tone === palette.paper ? 1.02 : 1.24) * (particle.anchor ? 1.14 : 1);
       const size = particle.size * (0.9 + state.logoDisplayLevel * 0.42 + breath * 0.14 + particle.energy * 0.22);
       ctx.fillStyle = `rgba(${particle.tone}, ${alpha})`;
       ctx.fillRect(particle.x + jitterX + orbitX + breatheX, particle.y + jitterY + orbitY + breatheY, size, size);
