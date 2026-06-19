@@ -31,3 +31,13 @@ python3 -m http.server 4188
 ```
 
 Then open `http://127.0.0.1:4188/river-ai-replica/`.
+
+## Pixel Check
+
+Run the visual parity check against the live River page and the deployed GitHub Pages copy:
+
+```sh
+npm run verify:river
+```
+
+The script compares the static hero mode and the main downstream scroll positions. It reports mean absolute error for each viewport and fails when full-frame or center-region MAE exceeds `0.75`.

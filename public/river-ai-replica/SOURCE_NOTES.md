@@ -47,3 +47,7 @@ For MalouTech, the same structure can become:
 ## Production Boundary
 
 This folder keeps the River snapshot isolated under `public/river-ai-replica/`. MalouTech production pages should use owned copy, assets, links, logo, and shader code derived from the learned architecture.
+
+## Verification
+
+`npm run verify:river` captures `river.ai` and the deployed GitHub Pages study copy at matching viewport and scroll positions. The default comparison uses `?riverStatic` because the live hero shader and footer water are time-based. Current threshold: full-frame MAE <= `0.75`, center-region MAE <= `0.75`.
