@@ -670,6 +670,7 @@
 
     const bounds = poseBounds(geometry);
     const w = state.width;
+    const h = state.height;
     const phaseIn = smooth(cycle.raw / 0.045);
     const attract = smooth((cycle.raw - 0.036) / 0.082);
     const alpha = presence * (0.18 + phaseIn * 0.82);
