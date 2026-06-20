@@ -1462,9 +1462,11 @@ function ResearchStructure() {
                 onBlur={() => releaseLayer(layer.id)}
                 onClick={() => selectLayer(layer.id)}
               >
-                <span className="research-layer-index">{layer.number}</span>
-                <strong>{layer.title}</strong>
-                <span className="research-layer-metric">{layer.metric}</span>
+                <span className="research-layer-label">
+                  <span className="research-layer-index">{layer.number}</span>
+                  <strong>{layer.title}</strong>
+                  <span className="research-layer-metric">{layer.metric}</span>
+                </span>
               </button>
             ))}
           </div>
