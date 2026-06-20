@@ -170,27 +170,55 @@ export const papers = [
 
 export const pillars = [
   {
+    id: "signals",
+    number: "01",
     title: "Signals",
+    summary: "Music, pose, image, text, and interaction traces become structured inputs.",
     detail: "Music, pose, image, text, and interaction traces become structured inputs for generative research.",
+    activeDetail:
+      "Research begins with signals that carry rhythm, body structure, visual context, language, and user intent.",
+    nodes: ["Music", "Pose", "Image", "Text", "Interaction traces"],
     metric: "input",
+    accent: "rust",
     evidence: [1, 2, 6],
   },
   {
+    id: "representations",
+    number: "02",
     title: "Representations",
+    summary: "Kinematics, timing, and multimodal context organize inputs before generation.",
     detail: "Kinematic structure, temporal coherence, and multimodal context are shaped before generation.",
+    activeDetail:
+      "Representations preserve body mechanics, temporal structure, and context so generated motion remains coherent.",
+    nodes: ["Kinematics", "Temporal coherence", "Multimodal context", "Motion semantics"],
     metric: "latent",
+    accent: "ink",
     evidence: [3, 5, 4],
   },
   {
+    id: "models",
+    number: "03",
     title: "Models",
+    summary: "Generative systems synthesize motion, appearance, and group behavior.",
     detail: "Dance generation systems route music, motion, appearance, and group coherence through specialized model paths.",
+    activeDetail:
+      "Models explore how expert routing, sequence modeling, and coherence decomposition support controllable human motion generation.",
+    nodes: ["Dance generation", "Group coherence", "Cascaded experts", "MoE", "Mamba"],
     metric: "model",
+    accent: "teal",
     evidence: [0, 3, 2],
   },
   {
+    id: "artifacts",
+    number: "04",
     title: "Artifacts",
+    summary: "Papers, code, visual results, project pages, and XR-facing prototypes expose the work.",
     detail: "Papers, code, project pages, and visual results stay visible as the public evidence layer.",
+    activeDetail:
+      "Artifacts make the research inspectable, reusable, and ready for creative or spatial computing contexts.",
+    nodes: ["Papers", "Code", "Project pages", "Visual results", "XR prototypes"],
     metric: "proof",
+    accent: "amber",
     evidence: [0, 1, 4],
   },
 ];

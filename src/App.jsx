@@ -23,18 +23,30 @@ gsap.registerPlugin(
 
 const researchEase = CustomEase.create("researchFluid", ".16,1,.3,1");
 
-function App() {
+function App({ page = "home" }) {
   const appRef = useRef(null);
-  useSmoothScroll(appRef);
+  const isPaperPage = page === "papers";
+  useSmoothScroll(appRef, !isPaperPage);
   useHashAnchorSettle();
+
+  if (isPaperPage) {
+    return (
+      <div className="app-root" ref={appRef}>
+        <SiteTopNav page="papers" />
+        <main className="site-shell paper-page-shell" id="top">
+          <PaperList />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-root" ref={appRef}>
+      <SiteTopNav page="home" />
       <div className="smooth-wrapper" id="smooth-wrapper">
         <main className="site-shell smooth-content" id="smooth-content">
           <ResearchStage />
           <PublicationProof />
-          <OpenResearch />
           <AboutContact />
         </main>
       </div>
@@ -42,9 +54,48 @@ function App() {
   );
 }
 
-function useSmoothScroll(scopeRef) {
+const homeNavItems = [
+  { label: "Work", href: "#publications" },
+  { label: "Contact", href: "#contact" },
+  { label: "Paper list", href: assetPath("papers.html") },
+];
+
+const papersNavItems = [
+  { label: "Home", href: assetPath("index.html#top") },
+  { label: "Work", href: assetPath("index.html#publications") },
+  { label: "Contact", href: assetPath("index.html#contact") },
+  { label: "Paper list", href: "#paper-list" },
+];
+
+function SiteTopNav({ page }) {
+  const isPaperPage = page === "papers";
+  const navItems = isPaperPage ? papersNavItems : homeNavItems;
+
+  return (
+    <header className="site-top-nav" aria-label="Primary navigation">
+      <a className="site-top-brand" href={isPaperPage ? assetPath("index.html#top") : "#top"} aria-label="MalouTech home">
+        <img src={assetPath("assets/brand/icons/favicon-32.png")} alt="" />
+        <span>Malou Tech</span>
+      </a>
+      <nav className="site-top-links">
+        {navItems.map((item) => (
+          <a key={item.href} href={item.href}>
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
+function useSmoothScroll(scopeRef, enabled = true) {
   useGSAP(
     () => {
+      if (!enabled) {
+        document.documentElement.classList.remove("has-smooth-scroll");
+        return;
+      }
+
       const mm = gsap.matchMedia();
 
       mm.add(
@@ -82,7 +133,7 @@ function useSmoothScroll(scopeRef) {
 
       return () => mm.revert();
     },
-    { scope: scopeRef },
+    { scope: scopeRef, dependencies: [enabled] },
   );
 }
 
@@ -103,6 +154,12 @@ function useHashAnchorSettle() {
 
         if (smoother) {
           smoother.scrollTo(target, false, "top top");
+          window.requestAnimationFrame(() => {
+            const delta = target.getBoundingClientRect().top;
+            if (Math.abs(delta) > 4) {
+              smoother.scrollTo(smoother.scrollTop() + delta, false);
+            }
+          });
         } else {
           target.scrollIntoView({ block: "start", inline: "nearest" });
         }
@@ -124,6 +181,20 @@ function useHashAnchorSettle() {
 }
 
 function ResearchStage() {
+  return (
+    <section className="stage-section latent-hero-section" id="top" aria-label="MalouTech latent choreography field">
+      <iframe
+        className="latent-hero-frame"
+        title="MalouTech latent choreography field"
+        src={assetPath("latent-choreography-field/index.html?fresh=8629d4b&embed=1")}
+        loading="eager"
+        tabIndex="-1"
+      />
+    </section>
+  );
+}
+
+function ResearchStageLegacy() {
   const stageRef = useRef(null);
   const [activeStage, setActiveStage] = useState("identity");
 
@@ -732,6 +803,55 @@ const readoutCopy = {
   spatial: "projecting generated motion into XR",
 };
 
+const venueLabels = Array.from(new Set(papers.map((paper) => paper.venue)));
+const artifactLinkCount = papers.reduce((count, paper) => count + paper.links.length, 0);
+const accepted2026Count = publicationNews.filter((item) => item.date.startsWith("2026")).length;
+
+const publicationStats = [
+  {
+    label: "Publication records",
+    value: String(papers.length),
+    detail: "papers in the current evidence set",
+  },
+  {
+    label: "2026 acceptances",
+    value: String(accepted2026Count),
+    detail: "SIGGRAPH, IEEE VR, and CVPR Workshop entries",
+  },
+  {
+    label: "Artifact links",
+    value: String(artifactLinkCount),
+    detail: "paper, project, and code destinations",
+  },
+  {
+    label: "Venues",
+    value: String(venueLabels.length),
+    detail: "unique publication venues represented",
+  },
+];
+
+function PaperLinks({ links }) {
+  if (links.length === 0) return null;
+
+  return (
+    <div className="paper-links" aria-label="Paper destinations">
+      {links.map((link) => (
+        <MagneticButton
+          key={link.href}
+          href={link.href}
+          target="_blank"
+          rel="noreferrer"
+          ariaLabel={link.label}
+          variant="contact"
+          className="paper-link-pill"
+        >
+          <strong>{link.label}</strong>
+        </MagneticButton>
+      ))}
+    </div>
+  );
+}
+
 function RouteReadout({ activeStage }) {
   const readoutRef = useRef(null);
 
@@ -815,7 +935,6 @@ function StageMeter({ activeStage }) {
 
 function PublicationProof() {
   const proofRef = useRef(null);
-  const previewRef = useRef(null);
 
   useGSAP(
     () => {
@@ -825,7 +944,6 @@ function PublicationProof() {
       const mm = gsap.matchMedia();
 
       gsap.set(".publication-trace-path", { drawSVG: "0% 0%" });
-      gsap.set(".ledger-trace-path", { drawSVG: "0% 0%" });
       gsap.set(".publication-pulse", { autoAlpha: 0, scale: 0.5, transformOrigin: "50% 50%" });
       gsap.set(".spotlight-progress-fill", { scaleX: 1 / papers.length, transformOrigin: "left center" });
 
@@ -843,7 +961,7 @@ function PublicationProof() {
       });
 
       if (reduceMotion) {
-        gsap.set(".publication-trace-path, .publication-pulse, .ledger-trace-path", {
+        gsap.set(".publication-trace-path, .publication-pulse", {
           clearProps: "all",
           autoAlpha: 1,
           scale: 1,
@@ -878,23 +996,6 @@ function PublicationProof() {
             },
             duration: 0.52,
           }, 0.26);
-
-        gsap.timeline({
-          defaults: { ease: "none" },
-          scrollTrigger: {
-            trigger: ".source-ledger",
-            start: "top 78%",
-            end: "bottom 36%",
-            scrub: 0.7,
-          },
-        })
-          .to(".ledger-trace-path", { drawSVG: "0% 100%", duration: 0.5 }, 0)
-          .to(".source-ledger-card", {
-            y: (index) => (index % 2 === 0 ? -18 : 18),
-            rotation: (index) => (index % 2 === 0 ? -0.8 : 0.8),
-            stagger: 0.04,
-            duration: 0.5,
-          }, 0);
 
         mm.add("(min-width: 900px)", () => {
           const spotlight = proofRef.current.querySelector(".paper-spotlight");
@@ -973,123 +1074,8 @@ function PublicationProof() {
         });
       }
 
-      ScrollTrigger.batch(".paper-card", {
-        start: "top 82%",
-        once: true,
-        onEnter: (batch) => {
-          const evidenceRows = batch.flatMap((card) =>
-            gsap.utils.toArray(".paper-evidence-row", card),
-          );
-          const artifactFills = batch.flatMap((card) =>
-            gsap.utils.toArray(".paper-artifact-fill", card),
-          );
-
-          gsap.from(batch, {
-            y: 46,
-            autoAlpha: 0,
-            scale: 0.97,
-            duration: 0.72,
-            ease: "power3.out",
-            stagger: 0.1,
-            overwrite: true,
-          });
-          gsap.from(evidenceRows, {
-            y: 16,
-            autoAlpha: 0,
-            duration: 0.58,
-            ease: "power3.out",
-            stagger: 0.035,
-            overwrite: true,
-          });
-          gsap.fromTo(
-            artifactFills,
-            { scaleX: 0 },
-            {
-              scaleX: 1,
-              duration: 0.72,
-              ease: "power3.out",
-              stagger: 0.045,
-              overwrite: true,
-            },
-          );
-        },
-      });
-
-      ScrollTrigger.batch(".source-ledger-card", {
-        start: "top 84%",
-        once: true,
-        onEnter: (batch) => {
-          gsap.from(batch, {
-            y: 42,
-            autoAlpha: 0,
-            scale: 0.96,
-            duration: 0.72,
-            ease: "power3.out",
-            stagger: 0.08,
-            overwrite: true,
-          });
-        },
-      });
-
-      const preview = previewRef.current;
-      const xTo = gsap.quickTo(preview, "x", { duration: 0.36, ease: "power3" });
-      const yTo = gsap.quickTo(preview, "y", { duration: 0.36, ease: "power3" });
-      let previewVisible = false;
-
-      const onMove = (event) => {
-        xTo(event.clientX + 28);
-        yTo(event.clientY - 64);
-      };
-      const hidePreview = () => {
-        if (!previewVisible) return;
-        previewVisible = false;
-        gsap.to(preview, {
-          autoAlpha: 0,
-          scale: 0.94,
-          duration: 0.18,
-          ease: "power2.out",
-          overwrite: true,
-        });
-      };
-
-      const cards = proofRef.current.querySelectorAll(".paper-card");
-      const cleanups = [];
-      cards.forEach((card) => {
-        const onEnter = () => {
-          previewVisible = true;
-          preview.querySelector(".preview-title").textContent = card.dataset.title;
-          preview.querySelector(".preview-venue").textContent = card.dataset.venue;
-          preview.querySelector(".preview-type").textContent = card.dataset.type;
-          const previewImage = preview.querySelector(".preview-image");
-          previewImage.src = card.dataset.imagePreview;
-          previewImage.srcset = card.dataset.imageSrcset;
-          previewImage.sizes = "320px";
-          previewImage.alt = "";
-          preview.dataset.accent = card.dataset.accent;
-          gsap.to(preview, {
-            autoAlpha: 1,
-            scale: 1,
-            duration: 0.22,
-            ease: "power2.out",
-            overwrite: true,
-          });
-        };
-
-        card.addEventListener("pointermove", onMove);
-        card.addEventListener("pointerenter", onEnter);
-        card.addEventListener("pointerleave", hidePreview);
-        cleanups.push(() => {
-          card.removeEventListener("pointermove", onMove);
-          card.removeEventListener("pointerenter", onEnter);
-          card.removeEventListener("pointerleave", hidePreview);
-        });
-      });
-      window.addEventListener("scroll", hidePreview, { passive: true });
-
       return () => {
         mm.revert();
-        cleanups.forEach((cleanup) => cleanup());
-        window.removeEventListener("scroll", hidePreview);
       };
     },
     { scope: proofRef },
@@ -1099,31 +1085,34 @@ function PublicationProof() {
     <section className="proof-section" id="publications" ref={proofRef}>
       <PublicationTrace />
       <div className="proof-heading">
-        <p className="section-kicker">Publication proof</p>
-        <h2>Research evidence backed by papers, code, project pages, and real publication imagery.</h2>
-        <div className="venue-strip" aria-label="Venues represented in the seed publication list">
-          {["SIGGRAPH", "IEEE VR", "CVPR W", "NeurIPS", "ACM MM", "ICMR"].map((venue) => (
-            <span key={venue}>{venue}</span>
+        <div className="proof-summary-row">
+          <h2>Application proof</h2>
+          <div className="proof-venue-pills" aria-label="Publication venues">
+            {venueLabels.map((venue) => (
+              <span key={venue}>{venue}</span>
+            ))}
+          </div>
+        </div>
+        <div className="proof-stats" aria-label="Publication evidence statistics">
+          {publicationStats.map((stat) => (
+            <article key={stat.label}>
+              <div className="proof-stat-line">
+                <span>{stat.label}</span>
+                <strong>{stat.value}</strong>
+              </div>
+            </article>
           ))}
         </div>
-        <a className="proof-source" href="https://xulongt.github.io/#publications" target="_blank" rel="noreferrer">
-          Source: Xulong Tang publication list
-        </a>
       </div>
-      <SourceLedger />
+      {/* <SourceLedger /> */}
       <div className="paper-spotlight" aria-label="Scroll-linked publication spotlight">
         <div className="spotlight-copy">
           {papers.map((paper, index) => (
             <article className="spotlight-copy-panel" key={`spotlight-copy-${paper.title}`}>
-              <p>{String(index + 1).padStart(2, "0")} / {String(papers.length).padStart(2, "0")}</p>
               <h3>{paper.title}</h3>
-              <strong>{paper.venue} · {paper.type}</strong>
-              <span>{paper.contribution}</span>
-              <div className="spotlight-themes" aria-label={`Spotlight themes for ${paper.title}`}>
-                {paper.themes.map((theme) => (
-                  <em key={`${paper.title}-${theme}`}>{theme}</em>
-                ))}
-              </div>
+              <p className="spotlight-meta">{paper.venue} · {paper.type}</p>
+              <p className="spotlight-description">{paper.contribution}</p>
+              <PaperLinks links={paper.links} />
             </article>
           ))}
         </div>
@@ -1140,10 +1129,6 @@ function PublicationProof() {
                 sizes="(max-width: 900px) 78vw, 52vw"
                 eager={index === 0}
               />
-              <figcaption>
-                <span>{paper.venue}</span>
-                <strong>{paper.type}</strong>
-              </figcaption>
             </figure>
           ))}
         </div>
@@ -1151,6 +1136,7 @@ function PublicationProof() {
           <span className="spotlight-progress-fill" />
         </div>
       </div>
+      {/*
       <div className="paper-list" aria-label="Featured publications">
         {papers.map((paper) => (
           <article
@@ -1178,6 +1164,7 @@ function PublicationProof() {
               <h3>{paper.title}</h3>
               <p className="paper-authors">{paper.authors}</p>
               <p className="paper-contribution">{paper.contribution}</p>
+              <PaperLinks links={paper.links} />
               <div className="paper-evidence-grid" aria-label={`Evidence matrix for ${paper.title}`}>
                 {[
                   ["Signal", paper.evidence.signal],
@@ -1199,21 +1186,12 @@ function PublicationProof() {
                   <span key={theme}>{theme}</span>
                 ))}
               </div>
-              {paper.links.length > 0 && (
-                <div className="paper-links">
-                  {paper.links.map((link) => (
-                    <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              )}
               <p className="paper-credit">{paper.assetCredit}</p>
             </div>
           </article>
         ))}
       </div>
-      <div ref={previewRef} className="paper-preview" aria-hidden="true">
+      <div className="paper-preview" aria-hidden="true">
         <div className="preview-figure">
           <PaperImage
             paper={papers[0]}
@@ -1226,6 +1204,7 @@ function PublicationProof() {
         <p className="preview-type">Motion + Appearance</p>
         <p className="preview-title">MACE-Dance</p>
       </div>
+      */}
     </section>
   );
 }
@@ -1301,186 +1280,195 @@ function PublicationTrace() {
   );
 }
 
-function OpenResearch() {
-  const sectionRef = useRef(null);
+function ContactIcon({ label }) {
+  const normalized = label.toLowerCase();
+  let icon = "mail";
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
+  if (normalized.includes("github")) icon = "github";
+  if (normalized.includes("twitter") || normalized.includes("x /")) icon = "x";
+  if (normalized.includes("instagram")) icon = "instagram";
+  if (normalized.includes("linkedin")) icon = "linkedin";
 
-      if (reduceMotion) {
-        gsap.set(".pipeline-progress-fill", { scaleX: 1, transformOrigin: "left center" });
-        return () => mm.revert();
-      }
+  if (icon === "github") {
+    return (
+      <svg className="contact-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2.25A9.75 9.75 0 0 0 8.92 21.26c.49.09.67-.21.67-.47v-1.82c-2.73.59-3.31-1.16-3.31-1.16-.45-1.13-1.1-1.43-1.1-1.43-.9-.62.07-.61.07-.61 1 .07 1.52 1.03 1.52 1.03.89 1.51 2.33 1.07 2.9.82.09-.64.35-1.07.63-1.32-2.18-.25-4.47-1.09-4.47-4.85 0-1.07.38-1.95 1.02-2.64-.1-.25-.44-1.25.1-2.61 0 0 .83-.27 2.72 1.01a9.38 9.38 0 0 1 4.96 0c1.89-1.28 2.72-1.01 2.72-1.01.54 1.36.2 2.36.1 2.61.64.69 1.02 1.57 1.02 2.64 0 3.77-2.3 4.59-4.49 4.84.36.31.68.91.68 1.84v2.65c0 .26.18.57.68.47A9.75 9.75 0 0 0 12 2.25Z" />
+      </svg>
+    );
+  }
 
-      mm.add("(min-width: 820px)", () => {
-        const track = sectionRef.current.querySelector(".pipeline-track");
-        const cards = sectionRef.current.querySelectorAll(".pipeline-card");
-        const progressFill = sectionRef.current.querySelector(".pipeline-progress-fill");
-        const setProgress = gsap.quickSetter(progressFill, "scaleX");
-        gsap.set(progressFill, { scaleX: 0, transformOrigin: "left center" });
+  if (icon === "x") {
+    return (
+      <svg className="contact-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.15 10.32 21.08 2.25h-1.64l-6.02 7-4.8-7H3.08l7.27 10.58-7.27 8.47h1.64l6.36-7.4 5.08 7.4h5.54l-7.55-10.98Zm-2.25 2.62-.74-1.05-5.86-8.4h2.53l4.73 6.77.74 1.05 6.15 8.81h-2.53l-5.02-7.18Z" />
+      </svg>
+    );
+  }
 
-        const tween = gsap.to(track, {
-          x: () => -(track.scrollWidth - window.innerWidth + 96),
-          ease: "none",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top top",
-            end: () => `+=${track.scrollWidth}`,
-            scrub: 0.8,
-            pin: true,
-            invalidateOnRefresh: true,
-            onUpdate: (self) => setProgress(self.progress),
-          },
-        });
+  if (icon === "instagram") {
+    return (
+      <svg className="contact-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7.5 2.75h9A4.76 4.76 0 0 1 21.25 7.5v9a4.76 4.76 0 0 1-4.75 4.75h-9a4.76 4.76 0 0 1-4.75-4.75v-9A4.76 4.76 0 0 1 7.5 2.75Zm0 1.7A3.05 3.05 0 0 0 4.45 7.5v9a3.05 3.05 0 0 0 3.05 3.05h9a3.05 3.05 0 0 0 3.05-3.05v-9a3.05 3.05 0 0 0-3.05-3.05h-9Zm4.5 3.3A4.25 4.25 0 1 1 7.75 12 4.25 4.25 0 0 1 12 7.75Zm0 1.7A2.55 2.55 0 1 0 14.55 12 2.55 2.55 0 0 0 12 9.45Zm4.48-2.48a.95.95 0 1 1-.95.95.95.95 0 0 1 .95-.95Z" />
+      </svg>
+    );
+  }
 
-        gsap.to(".pipeline-field", {
-          xPercent: -8,
-          autoAlpha: 0.54,
-          ease: "none",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top top",
-            end: () => `+=${track.scrollWidth}`,
-            scrub: 0.8,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        cards.forEach((card, index) => {
-          const evidenceItems = card.querySelectorAll(
-            ".pillar-evidence figure, .collab-evidence figure",
-          );
-          gsap.from(card.querySelectorAll(".pipeline-card > *"), {
-            x: 48,
-            autoAlpha: 0,
-            stagger: 0.07,
-            duration: 0.6,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: card,
-              containerAnimation: tween,
-              start: "left 72%",
-              end: "right 32%",
-              toggleActions: "play none none reverse",
-            },
-          });
-
-          if (evidenceItems.length > 0) {
-            gsap.from(evidenceItems, {
-              y: 26,
-              autoAlpha: 0,
-              scale: 0.92,
-              stagger: 0.06,
-              duration: 0.58,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: card,
-                containerAnimation: tween,
-                start: "left 68%",
-                end: "right 30%",
-                toggleActions: "play none none reverse",
-              },
-            });
-
-          }
-
-          gsap.to(card, {
-            y: index % 2 === 0 ? -32 : 32,
-            rotation: index % 2 === 0 ? -1.2 : 1.2,
-            ease: "none",
-            scrollTrigger: {
-              trigger: card,
-              containerAnimation: tween,
-              start: "left right",
-              end: "right left",
-              scrub: true,
-            },
-          });
-        });
-      });
-
-      return () => mm.revert();
-    },
-    { scope: sectionRef },
-  );
+  if (icon === "linkedin") {
+    return (
+      <svg className="contact-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5.35 7.9H2.9v13.35h2.45V7.9ZM4.13 2.75a1.42 1.42 0 1 0 0 2.84 1.42 1.42 0 0 0 0-2.84Zm6.16 5.15H7.94v13.35h2.35v-7.02c0-1.88.87-3 2.33-3 1.35 0 2.01.95 2.01 2.78v7.24h2.45v-7.82c0-3.44-1.84-5.04-4.3-5.04a3.63 3.63 0 0 0-2.49.94V7.9Z" />
+      </svg>
+    );
+  }
 
   return (
-    <section className="open-section" id="research" ref={sectionRef}>
-      <div className="pipeline-field" data-speed="0.9" aria-hidden="true">
-        {Array.from({ length: 18 }, (_, index) => (
-          <span key={index} />
-        ))}
+    <svg className="contact-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.25 5.75h15.5A1.25 1.25 0 0 1 21 7v10a1.25 1.25 0 0 1-1.25 1.25H4.25A1.25 1.25 0 0 1 3 17V7a1.25 1.25 0 0 1 1.25-1.25Zm.45 1.7 7.3 5.18 7.3-5.18H4.7Zm14.6 9.1V9.43l-6.81 4.83a.84.84 0 0 1-.98 0L4.7 9.43v7.12h14.6Z" />
+    </svg>
+  );
+}
+
+const defaultResearchLayer = pillars.find((pillar) => pillar.id === "models") ?? pillars[0];
+const iterationLayer = {
+  id: "iteration",
+  number: "Loop",
+  title: "Iteration",
+  summary: "Research artifacts expose constraints that shape the next cycle.",
+  activeDetail:
+    "Published systems and prototypes reveal new constraints for data, representation, and model design.",
+  nodes: ["Constraints", "Evaluation", "Next signals"],
+};
+
+function ResearchStructure() {
+  const [hoverLayer, setHoverLayer] = useState(defaultResearchLayer.id);
+  const [pinnedLayer, setPinnedLayer] = useState(null);
+  const loopPath = "M154 38 C220 54 232 135 174 166 C126 190 78 166 58 124";
+  const activeLayerId = pinnedLayer ?? hoverLayer ?? defaultResearchLayer.id;
+  const activeLayer =
+    activeLayerId === iterationLayer.id
+      ? iterationLayer
+      : pillars.find((pillar) => pillar.id === activeLayerId) ?? defaultResearchLayer;
+
+  const activateLayer = (id) => setHoverLayer(id);
+  const releaseLayer = () => {
+    if (!pinnedLayer) setHoverLayer(defaultResearchLayer.id);
+  };
+  const togglePinnedLayer = (id) => {
+    setPinnedLayer((current) => (current === id ? null : id));
+    setHoverLayer(id);
+  };
+  const clearPinnedLayer = (event) => {
+    if (event.key === "Escape") {
+      setPinnedLayer(null);
+      setHoverLayer(defaultResearchLayer.id);
+    }
+  };
+
+  return (
+    <div
+      className={`research-structure${activeLayerId === iterationLayer.id ? " is-iteration-active" : ""}`}
+      data-active-layer={activeLayerId}
+      onKeyDown={clearPinnedLayer}
+    >
+      <div className="research-structure-copy">
+        <p>
+          Explore the stack to see how inputs become representations, models, and research artifacts.
+        </p>
+        <div className="research-list" aria-label="MalouTech research layers">
+          {pillars.map((layer) => (
+            <button
+              className={`research-list-item${activeLayerId === layer.id ? " is-active" : ""}`}
+              type="button"
+              key={layer.id}
+              aria-pressed={pinnedLayer === layer.id}
+              onMouseEnter={() => activateLayer(layer.id)}
+              onFocus={() => activateLayer(layer.id)}
+              onClick={() => togglePinnedLayer(layer.id)}
+            >
+              <span>{layer.number}</span>
+              <strong>{layer.title}</strong>
+              <em>{layer.summary}</em>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="open-copy">
-        <p className="section-kicker">Research translation</p>
-        <h2>From source signal to public artifact.</h2>
-      </div>
-      <div className="pipeline-progress" aria-hidden="true">
-        <span className="pipeline-progress-fill" />
-      </div>
-      <div className="pipeline-track">
-        {pillars.map((pillar, index) => (
-          <article className="pipeline-card" key={pillar.title}>
-            <p>0{index + 1}</p>
-            <h3>{pillar.title}</h3>
-            <strong>{pillar.metric}</strong>
-            <span>{pillar.detail}</span>
-            <div className="pillar-evidence" aria-label={`${pillar.title} publication evidence`}>
-              {pillar.evidence.map((paperIndex) => {
-                const paper = papers[paperIndex];
-                return (
-                  <figure
-                    key={`${pillar.title}-${paper.title}`}
-                    style={paperAspectStyle(paper)}
-                  >
-                    <PaperImage
-                      paper={paper}
-                      sizes="(max-width: 900px) 31vw, 130px"
-                      fallback="small"
-                    />
-                    <figcaption>
-                      <span>{paper.venue}</span>
-                      <strong>{paper.type}</strong>
-                    </figcaption>
-                  </figure>
-                );
-              })}
-            </div>
-          </article>
-        ))}
-        <article className="pipeline-card pipeline-card-wide" id="collaborate">
-          <p>05</p>
-          <h3>Collaborate with MalouTech</h3>
-          <strong>open research</strong>
-          <span>
-            Research inquiries should land on evidence: publications, code,
-            project pages, prototype media, and clearly scoped collaboration.
-          </span>
-          <div className="collab-evidence" aria-label="Featured publication artifacts">
-            {papers.slice(0, 4).map((paper) => (
-              <figure key={`collab-${paper.title}`} style={paperAspectStyle(paper)}>
-                <PaperImage
-                  paper={paper}
-                  sizes="(max-width: 900px) 24vw, 140px"
-                  fallback="small"
-                />
-                <figcaption>{paper.venue}</figcaption>
-              </figure>
+
+      <div className="research-stack-shell">
+        <div className="research-stack-stage" onMouseLeave={releaseLayer}>
+          <svg className="research-loop-map" viewBox="0 0 260 220" aria-hidden="true">
+            <path className="research-loop-path" d={loopPath} />
+            <circle className="research-loop-dot" r="5">
+              <animateMotion dur="2.8s" repeatCount="indefinite" path={loopPath} />
+            </circle>
+          </svg>
+          <button
+            className={`research-loop-label${activeLayerId === iterationLayer.id ? " is-active" : ""}`}
+            type="button"
+            aria-pressed={pinnedLayer === iterationLayer.id}
+            onMouseEnter={() => activateLayer(iterationLayer.id)}
+            onFocus={() => activateLayer(iterationLayer.id)}
+            onClick={() => togglePinnedLayer(iterationLayer.id)}
+          >
+            <span>Loop</span>
+            <strong>Iteration</strong>
+          </button>
+
+          <div className="research-stack-layers" aria-label="Interactive research stack">
+            {pillars.map((layer, index) => (
+              <button
+                className={`research-layer research-layer-${layer.accent}${activeLayerId === layer.id ? " is-active" : ""}`}
+                type="button"
+                key={layer.id}
+                style={{ "--i": index }}
+                aria-pressed={pinnedLayer === layer.id}
+                onMouseEnter={() => activateLayer(layer.id)}
+                onFocus={() => activateLayer(layer.id)}
+                onClick={() => togglePinnedLayer(layer.id)}
+              >
+                <span className="research-layer-index">{layer.number}</span>
+                <strong>{layer.title}</strong>
+                <span className="research-layer-metric">{layer.metric}</span>
+                <span className="research-layer-nodes" aria-hidden="true">
+                  {layer.nodes.slice(0, 3).map((node) => (
+                    <i key={`${layer.id}-${node}`}>{node}</i>
+                  ))}
+                </span>
+              </button>
             ))}
           </div>
-          <MagneticButton href="#contact">Contact the lab</MagneticButton>
-        </article>
+
+          <div className="research-stack-labels" aria-hidden="true">
+            {pillars.map((layer, index) => (
+              <span
+                className={`research-stack-label${activeLayerId === layer.id ? " is-active" : ""}`}
+                key={`label-${layer.id}`}
+                style={{ "--i": index }}
+              >
+                <i />
+                <strong>{layer.title}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="research-active-card" aria-live="polite">
+          <p>{activeLayer.number}</p>
+          <h3>{activeLayer.title}</h3>
+          <span>{activeLayer.activeDetail}</span>
+          <div className="research-node-list" aria-label={`${activeLayer.title} research terms`}>
+            {activeLayer.nodes.map((node) => (
+              <em key={`${activeLayer.id}-${node}`}>{node}</em>
+            ))}
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 function AboutContact() {
   const sectionRef = useRef(null);
+  const [primaryContact, ...secondaryContactLinks] = contactLinks;
 
   useGSAP(
     () => {
@@ -1489,23 +1477,74 @@ function AboutContact() {
       ).matches;
 
       gsap.set(".about-trace-path", { drawSVG: "0% 0%" });
+      gsap.set(".research-loop-path", { drawSVG: "0% 0%" });
       gsap.set(".contact-signal", { autoAlpha: 0, scale: 0.62, transformOrigin: "50% 50%" });
 
-      gsap.from(".about-copy > *, .contact-panel > *", {
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top 74%",
-          once: true,
+      gsap.fromTo(
+        ".about-copy > *",
+        {
+          y: reduceMotion ? 0 : 34,
+          autoAlpha: 0,
         },
-        y: reduceMotion ? 0 : 34,
-        autoAlpha: 0,
-        duration: reduceMotion ? 0.01 : 0.74,
-        ease: "power3.out",
-        stagger: 0.08,
-      });
+        {
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top 74%",
+            once: true,
+          },
+          y: 0,
+          autoAlpha: 1,
+          duration: reduceMotion ? 0.01 : 0.74,
+          ease: "power3.out",
+          stagger: 0.08,
+          immediateRender: false,
+        },
+      );
+
+      gsap.fromTo(
+        ".research-structure > *",
+        {
+          y: reduceMotion ? 0 : 34,
+          autoAlpha: 0,
+        },
+        {
+          scrollTrigger: {
+            trigger: ".research-structure",
+            start: "top 78%",
+            once: true,
+          },
+          y: 0,
+          autoAlpha: 1,
+          duration: reduceMotion ? 0.01 : 0.78,
+          ease: "power3.out",
+          stagger: 0.08,
+          immediateRender: false,
+        },
+      );
+
+      gsap.fromTo(
+        ".contact-panel > *",
+        {
+          y: reduceMotion ? 0 : 34,
+          autoAlpha: 0,
+        },
+        {
+          scrollTrigger: {
+            trigger: ".contact-panel",
+            start: "top 76%",
+            once: true,
+          },
+          y: 0,
+          autoAlpha: 1,
+          duration: reduceMotion ? 0.01 : 0.74,
+          ease: "power3.out",
+          stagger: 0.08,
+          immediateRender: false,
+        },
+      );
 
       if (reduceMotion) {
-        gsap.set(".about-trace-path, .contact-signal", {
+        gsap.set(".about-trace-path, .research-loop-path, .contact-signal", {
           clearProps: "all",
           autoAlpha: 1,
           scale: 1,
@@ -1533,22 +1572,15 @@ function AboutContact() {
           duration: 0.7,
         }, 0.2);
 
-      ScrollTrigger.batch(".about-evidence-tile", {
-        start: "top 82%",
-        once: true,
-        onEnter: (batch) => {
-          gsap.from(batch, {
-            y: 46,
-            autoAlpha: 0,
-            scale: 0.94,
-            rotation: (index) => (index % 2 === 0 ? -1.4 : 1.4),
-            duration: 0.78,
-            ease: "power3.out",
-            stagger: { amount: 0.32, from: "center" },
-            overwrite: true,
-          });
+      gsap.timeline({
+        defaults: { ease: "power2.out" },
+        scrollTrigger: {
+          trigger: ".research-structure",
+          start: "top 76%",
+          once: true,
         },
-      });
+      })
+        .to(".research-loop-path", { drawSVG: "0% 100%", duration: 1.15 }, 0.12);
 
     },
     { scope: sectionRef },
@@ -1570,73 +1602,194 @@ function AboutContact() {
       </svg>
 
       <div className="about-copy">
-        <p className="section-kicker">About MalouTech</p>
-        <h2>Nonprofit research for expressive human-AI creation.</h2>
+        <h2>A research stack for generative motion and XR.</h2>
         <p>
-          MalouTech connects AI-generated art, 3D human motion generation,
-          multimodal learning, and extended reality through public research
-          outputs, project pages, prototype media, and collaboration channels.
+          MalouTech builds systems that translate multimodal signals into
+          structured representations, generative models, and inspectable
+          research artifacts for AI-generated art, 3D human motion, and spatial interfaces.
         </p>
       </div>
 
-      <div className="about-evidence" aria-label="Research evidence surface">
-        <div className="about-evidence-copy">
-          <img src={assetPath("assets/brand/malou-mark.svg")} alt="" />
-          <p>Evidence surface</p>
-          <h3>Publication artifacts form the lab's public research surface.</h3>
-          <span>
-            Recent work spans motion-appearance video generation, XR dance
-            synthesis, group choreography, retrieval, and token-based
-            music-to-dance modeling.
-          </span>
-        </div>
-        {papers.slice(0, 5).map((paper, index) => (
-          <figure
-            className={`about-evidence-tile ${index === 0 ? "is-large" : ""}`}
-            key={`about-${paper.title}`}
-            style={paperAspectStyle(paper)}
-          >
-            <PaperImage
-              paper={paper}
-              sizes="(max-width: 900px) 100vw, 320px"
-              fallback="medium"
-            />
-            <figcaption>
-              <span>{paper.venue}</span>
-              <strong>{paper.type}</strong>
-            </figcaption>
-          </figure>
-        ))}
-      </div>
+      <ResearchStructure />
 
       <div className="contact-panel" id="contact">
-        <p className="section-kicker">Contact / collaboration</p>
-        <h2>Share research inquiries, collaboration ideas, and publication updates.</h2>
-        <MagneticButton href="mailto:admin@maloutech.com">Email MalouTech</MagneticButton>
-        <div className="contact-grid" aria-label="MalouTech contact links">
-          {contactLinks.map((link) => (
-            <a key={`${link.label}-${link.href}`} href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel={link.href.startsWith("http") ? "noreferrer" : undefined}>
-              <span>{link.label}</span>
-              <strong>{link.value}</strong>
+        <div className="contact-panel-main">
+          <div className="contact-copy">
+            <h2>Contact MalouTech.</h2>
+          </div>
+          <div className="contact-primary">
+            <a className="contact-primary-link" href={primaryContact.href}>
+              <span className="contact-icon-shell">
+                <ContactIcon label={primaryContact.label} />
+              </span>
+              <span>{primaryContact.value}</span>
             </a>
+            <MagneticButton href={primaryContact.href}>Email</MagneticButton>
+          </div>
+        </div>
+        <div className="contact-grid" aria-label="MalouTech contact links">
+          {secondaryContactLinks.map((link) => (
+            <MagneticButton
+              key={`${link.label}-${link.href}`}
+              href={link.href}
+              target={link.href.startsWith("http") ? "_blank" : undefined}
+              rel={link.href.startsWith("http") ? "noreferrer" : undefined}
+              ariaLabel={link.label}
+              variant="contact"
+              className="contact-social-link"
+            >
+              <span className="contact-icon-shell">
+                <ContactIcon label={link.label} />
+              </span>
+              <strong>{link.value}</strong>
+            </MagneticButton>
           ))}
         </div>
       </div>
 
       <footer className="site-footer">
-        <span>Malou Tech Inc | Copyright © 2024</span>
-        <a href="https://www.maloutech.com/contact" target="_blank" rel="noreferrer">
-          Current site source
-        </a>
-        <a href="https://xulongt.github.io/" target="_blank" rel="noreferrer">
-          Publication data source
-        </a>
+        <span>Malou Tech Inc © 2026</span>
+        <span>
+          Design by{" "}
+          <a href="https://dearbobby9.github.io/" target="_blank" rel="noreferrer">
+            Difan Jia
+          </a>{" "}
+          and build with Codex.
+        </span>
       </footer>
     </section>
   );
 }
 
-function MagneticButton({ href, children, variant = "solid" }) {
+function PaperList() {
+  const listRef = useRef(null);
+
+  useGSAP(
+    () => {
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      if (reduceMotion) return;
+
+      ScrollTrigger.batch(".paper-list-section .paper-card", {
+        start: "top 84%",
+        once: true,
+        onEnter: (batch) => {
+          const evidenceRows = batch.flatMap((card) =>
+            gsap.utils.toArray(".paper-evidence-row", card),
+          );
+          const artifactFills = batch.flatMap((card) =>
+            gsap.utils.toArray(".paper-artifact-fill", card),
+          );
+
+          gsap.from(batch, {
+            y: 42,
+            autoAlpha: 0,
+            scale: 0.98,
+            duration: 0.72,
+            ease: "power3.out",
+            stagger: 0.08,
+            overwrite: true,
+          });
+          gsap.from(evidenceRows, {
+            y: 14,
+            autoAlpha: 0,
+            duration: 0.52,
+            ease: "power3.out",
+            stagger: 0.03,
+            overwrite: true,
+          });
+          gsap.fromTo(
+            artifactFills,
+            { scaleX: 0 },
+            {
+              scaleX: 1,
+              duration: 0.68,
+              ease: "power3.out",
+              stagger: 0.04,
+              overwrite: true,
+            },
+          );
+        },
+      });
+    },
+    { scope: listRef },
+  );
+
+  return (
+    <section className="paper-list-section" id="paper-list" ref={listRef}>
+      <div className="paper-list-heading">
+        <p className="section-kicker">Paper list</p>
+        <h2>Seven publication records with links, methods, outputs, and artifact status.</h2>
+      </div>
+      <div className="paper-list" aria-label="Complete publication list">
+        {papers.map((paper) => (
+          <article
+            key={paper.title}
+            className="paper-card"
+            data-title={paper.title}
+            data-venue={paper.venue}
+            data-type={paper.type}
+            data-image={paper.image}
+            data-image-preview={paper.imageMedium}
+            data-image-srcset={paper.imageSrcSet}
+            data-accent={paper.accent}
+          >
+            <figure className="paper-visual" style={paperAspectStyle(paper)}>
+              <PaperImage
+                paper={paper}
+                sizes="(max-width: 900px) 100vw, 420px"
+                fallback="medium"
+              />
+            </figure>
+            <div>
+              <p className="paper-meta">
+                {paper.venue} <span>{paper.type}</span>
+              </p>
+              <h3>{paper.title}</h3>
+              <p className="paper-authors">{paper.authors}</p>
+              <p className="paper-contribution">{paper.contribution}</p>
+              <PaperLinks links={paper.links} />
+              <div className="paper-evidence-grid" aria-label={`Evidence matrix for ${paper.title}`}>
+                {[
+                  ["Signal", paper.evidence.signal],
+                  ["Method", paper.evidence.method],
+                  ["Output", paper.evidence.output],
+                  ["Artifact", paper.evidence.artifacts],
+                ].map(([label, value]) => (
+                  <div className="paper-evidence-row" key={`${paper.title}-${label}`}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="paper-artifact-meter" aria-hidden="true">
+                <span className={`paper-artifact-fill paper-artifact-${paper.accent}`} />
+              </div>
+              <div className="paper-themes" aria-label={`Themes for ${paper.title}`}>
+                {paper.themes.map((theme) => (
+                  <span key={theme}>{theme}</span>
+                ))}
+              </div>
+              <p className="paper-credit">{paper.assetCredit}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MagneticButton({
+  href,
+  children,
+  variant = "solid",
+  className = "",
+  target,
+  rel,
+  ariaLabel,
+}) {
   const buttonRef = useRef(null);
 
   useGSAP(
@@ -1666,8 +1819,15 @@ function MagneticButton({ href, children, variant = "solid" }) {
   );
 
   return (
-    <a ref={buttonRef} className={`magnetic magnetic-${variant}`} href={href}>
-      <span>{children}</span>
+    <a
+      ref={buttonRef}
+      className={`magnetic magnetic-${variant}${className ? ` ${className}` : ""}`}
+      href={href}
+      target={target}
+      rel={rel}
+      aria-label={ariaLabel}
+    >
+      {children}
     </a>
   );
 }

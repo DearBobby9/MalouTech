@@ -13,6 +13,7 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
   const params = new URLSearchParams(window.location.search);
+  const embeddedMode = params.get("embed") === "1";
   const hardwareLow =
     (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
     (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
@@ -710,27 +711,29 @@
 
     drawLensCore();
 
-    ctx.save();
-    const gap = Math.max(110, profile.gridGap);
-    for (let x = (time * 8) % gap - gap; x < w + gap; x += gap) {
-      const points = [];
-      const steps = qualityName === "low" ? 8 : 13;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        points.push([x + w * 0.08 * t, h * t]);
+    if (!embeddedMode) {
+      ctx.save();
+      const gap = Math.max(110, profile.gridGap);
+      for (let x = (time * 8) % gap - gap; x < w + gap; x += gap) {
+        const points = [];
+        const steps = qualityName === "low" ? 8 : 13;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          points.push([x + w * 0.08 * t, h * t]);
+        }
+        drawWarpedGridLine(points, time, 0.62, 0.018 + state.logoDisplayLevel * 0.01);
       }
-      drawWarpedGridLine(points, time, 0.62, 0.018 + state.logoDisplayLevel * 0.01);
-    }
-    for (let y = h * 0.2; y < h; y += gap) {
-      const points = [];
-      const steps = qualityName === "low" ? 8 : 14;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        points.push([w * t, y + Math.sin(time * 0.3 + y + t * Math.PI) * 8]);
+      for (let y = h * 0.2; y < h; y += gap) {
+        const points = [];
+        const steps = qualityName === "low" ? 8 : 14;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          points.push([w * t, y + Math.sin(time * 0.3 + y + t * Math.PI) * 8]);
+        }
+        drawWarpedGridLine(points, time, 0.58, 0.016 + state.logoDisplayLevel * 0.01);
       }
-      drawWarpedGridLine(points, time, 0.58, 0.016 + state.logoDisplayLevel * 0.01);
+      ctx.restore();
     }
-    ctx.restore();
     drawLensDust(time);
   }
 
@@ -1372,6 +1375,19 @@
     }, { passive: true });
   }
 
+  function setupEmbeddedScrollBridge() {
+    if (!embeddedMode) return;
+    window.addEventListener("wheel", (event) => {
+      if (!window.parent || window.parent === window) return;
+      event.preventDefault();
+      window.parent.scrollBy({
+        top: event.deltaY,
+        left: event.deltaX,
+        behavior: "auto",
+      });
+    }, { passive: false });
+  }
+
   function setupLogoTargets() {
     state.logoTargets = sampledLogoTargets();
     if (!state.logoTargets.length) state.logoTargets = fallbackLogoTargets();
@@ -1485,6 +1501,7 @@
   setupLogoTargets();
   resize();
   setupPointerField();
+  setupEmbeddedScrollBridge();
   setupObserver();
   setupScrollReveals();
   if (staticMode) render(performance.now(), true);

@@ -9,6 +9,11 @@
     content="A MalouTech homepage study where motion gathers from a living field of particles."
   />
   <link rel="icon" href="../assets/brand/icons/favicon-32.png" />
+  <script>
+    if (new URLSearchParams(window.location.search).get("embed") === "1") {
+      document.documentElement.classList.add("is-embedded");
+    }
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
