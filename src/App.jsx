@@ -1336,12 +1336,15 @@ function ResearchStructure() {
   const [hasEntered, setHasEntered] = useState(false);
   const [autoLayerIndex, setAutoLayerIndex] = useState(0);
   const [manualLayerId, setManualLayerId] = useState(null);
-  const loopPath = "M154 38 C220 54 232 135 174 166 C126 190 78 166 58 124";
+  const loopDuration = `${researchLoopInterval / 1000}s`;
+  const loopPath =
+    "M162 24 C214 24 250 46 250 80 C250 118 212 144 156 144 C98 144 62 118 62 84 C62 48 102 24 162 24";
   const activeLayer = manualLayerId
     ? pillars.find((pillar) => pillar.id === manualLayerId) ?? defaultResearchLayer
     : pillars[autoLayerIndex] ?? defaultResearchLayer;
   const activeLayerId = activeLayer.id;
   const isAutoRunning = hasEntered && manualLayerId === null;
+  const loopMotionKey = `${activeLayerId}-${isAutoRunning ? "running" : "paused"}`;
 
   useEffect(() => {
     const node = structureRef.current;
@@ -1428,10 +1431,16 @@ function ResearchStructure() {
 
       <div className="research-stack-shell">
         <div className="research-stack-stage" onMouseLeave={releaseLayer}>
-          <svg className="research-loop-map" viewBox="0 0 260 220" aria-hidden="true">
+          <svg className="research-loop-map" viewBox="0 0 260 170" aria-hidden="true">
             <path className="research-loop-path" d={loopPath} />
-            <circle className="research-loop-dot" r="5">
-              <animateMotion dur="2.8s" repeatCount="indefinite" path={loopPath} />
+            <circle className="research-loop-dot" r="5" key={loopMotionKey}>
+              <animateMotion
+                dur={loopDuration}
+                repeatCount="indefinite"
+                path={loopPath}
+                calcMode="linear"
+                begin="0s"
+              />
             </circle>
           </svg>
           <div className={`research-loop-label${isAutoRunning ? " is-active" : ""}`} aria-hidden="true">
