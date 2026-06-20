@@ -1328,47 +1328,78 @@ function ContactIcon({ label }) {
   );
 }
 
-const defaultResearchLayer = pillars.find((pillar) => pillar.id === "models") ?? pillars[0];
-const iterationLayer = {
-  id: "iteration",
-  number: "Loop",
-  title: "Iteration",
-  summary: "Research artifacts expose constraints that shape the next cycle.",
-  activeDetail:
-    "Published systems and prototypes reveal new constraints for data, representation, and model design.",
-  nodes: ["Constraints", "Evaluation", "Next signals"],
-};
+const defaultResearchLayer = pillars[0];
+const researchLoopInterval = 3000;
 
 function ResearchStructure() {
-  const [hoverLayer, setHoverLayer] = useState(defaultResearchLayer.id);
-  const [pinnedLayer, setPinnedLayer] = useState(null);
+  const structureRef = useRef(null);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [autoLayerIndex, setAutoLayerIndex] = useState(0);
+  const [manualLayerId, setManualLayerId] = useState(null);
   const loopPath = "M154 38 C220 54 232 135 174 166 C126 190 78 166 58 124";
-  const activeLayerId = pinnedLayer ?? hoverLayer ?? defaultResearchLayer.id;
-  const activeLayer =
-    activeLayerId === iterationLayer.id
-      ? iterationLayer
-      : pillars.find((pillar) => pillar.id === activeLayerId) ?? defaultResearchLayer;
+  const activeLayer = manualLayerId
+    ? pillars.find((pillar) => pillar.id === manualLayerId) ?? defaultResearchLayer
+    : pillars[autoLayerIndex] ?? defaultResearchLayer;
+  const activeLayerId = activeLayer.id;
+  const isAutoRunning = hasEntered && manualLayerId === null;
 
-  const activateLayer = (id) => setHoverLayer(id);
-  const releaseLayer = () => {
-    if (!pinnedLayer) setHoverLayer(defaultResearchLayer.id);
+  useEffect(() => {
+    const node = structureRef.current;
+    if (!node) {
+      setHasEntered(true);
+      return undefined;
+    }
+
+    if (!("IntersectionObserver" in window)) {
+      setHasEntered(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setHasEntered(true);
+      },
+      { threshold: 0.32 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!isAutoRunning || reduceMotion) return undefined;
+
+    const interval = window.setInterval(() => {
+      setAutoLayerIndex((index) => (index + 1) % pillars.length);
+    }, researchLoopInterval);
+
+    return () => window.clearInterval(interval);
+  }, [isAutoRunning]);
+
+  const activateLayer = (id) => setManualLayerId(id);
+  const releaseLayer = (id = manualLayerId) => {
+    const nextIndex = pillars.findIndex((pillar) => pillar.id === id);
+    if (nextIndex >= 0) setAutoLayerIndex(nextIndex);
+    setManualLayerId(null);
   };
-  const togglePinnedLayer = (id) => {
-    setPinnedLayer((current) => (current === id ? null : id));
-    setHoverLayer(id);
+  const selectLayer = (id) => {
+    const nextIndex = pillars.findIndex((pillar) => pillar.id === id);
+    if (nextIndex >= 0) setAutoLayerIndex(nextIndex);
+    setManualLayerId(null);
   };
-  const clearPinnedLayer = (event) => {
+  const clearManualLayer = (event) => {
     if (event.key === "Escape") {
-      setPinnedLayer(null);
-      setHoverLayer(defaultResearchLayer.id);
+      setManualLayerId(null);
     }
   };
 
   return (
     <div
-      className={`research-structure${activeLayerId === iterationLayer.id ? " is-iteration-active" : ""}`}
+      className={`research-structure${isAutoRunning ? " is-loop-running" : ""}`}
       data-active-layer={activeLayerId}
-      onKeyDown={clearPinnedLayer}
+      onKeyDown={clearManualLayer}
+      ref={structureRef}
     >
       <div className="research-structure-copy">
         <p>
@@ -1380,10 +1411,12 @@ function ResearchStructure() {
               className={`research-list-item${activeLayerId === layer.id ? " is-active" : ""}`}
               type="button"
               key={layer.id}
-              aria-pressed={pinnedLayer === layer.id}
+              aria-current={activeLayerId === layer.id ? "true" : undefined}
               onMouseEnter={() => activateLayer(layer.id)}
+              onMouseLeave={() => releaseLayer(layer.id)}
               onFocus={() => activateLayer(layer.id)}
-              onClick={() => togglePinnedLayer(layer.id)}
+              onBlur={() => releaseLayer(layer.id)}
+              onClick={() => selectLayer(layer.id)}
             >
               <span>{layer.number}</span>
               <strong>{layer.title}</strong>
@@ -1401,17 +1434,10 @@ function ResearchStructure() {
               <animateMotion dur="2.8s" repeatCount="indefinite" path={loopPath} />
             </circle>
           </svg>
-          <button
-            className={`research-loop-label${activeLayerId === iterationLayer.id ? " is-active" : ""}`}
-            type="button"
-            aria-pressed={pinnedLayer === iterationLayer.id}
-            onMouseEnter={() => activateLayer(iterationLayer.id)}
-            onFocus={() => activateLayer(iterationLayer.id)}
-            onClick={() => togglePinnedLayer(iterationLayer.id)}
-          >
+          <div className={`research-loop-label${isAutoRunning ? " is-active" : ""}`} aria-hidden="true">
             <span>Loop</span>
             <strong>Iteration</strong>
-          </button>
+          </div>
 
           <div className="research-stack-layers" aria-label="Interactive research stack">
             {pillars.map((layer, index) => (
@@ -1419,47 +1445,26 @@ function ResearchStructure() {
                 className={`research-layer research-layer-${layer.accent}${activeLayerId === layer.id ? " is-active" : ""}`}
                 type="button"
                 key={layer.id}
-                style={{ "--i": index }}
-                aria-pressed={pinnedLayer === layer.id}
+                style={{ "--i": pillars.length - 1 - index }}
+                aria-current={activeLayerId === layer.id ? "true" : undefined}
                 onMouseEnter={() => activateLayer(layer.id)}
+                onMouseLeave={() => releaseLayer(layer.id)}
                 onFocus={() => activateLayer(layer.id)}
-                onClick={() => togglePinnedLayer(layer.id)}
+                onBlur={() => releaseLayer(layer.id)}
+                onClick={() => selectLayer(layer.id)}
               >
                 <span className="research-layer-index">{layer.number}</span>
                 <strong>{layer.title}</strong>
                 <span className="research-layer-metric">{layer.metric}</span>
-                <span className="research-layer-nodes" aria-hidden="true">
-                  {layer.nodes.slice(0, 3).map((node) => (
-                    <i key={`${layer.id}-${node}`}>{node}</i>
-                  ))}
-                </span>
               </button>
-            ))}
-          </div>
-
-          <div className="research-stack-labels" aria-hidden="true">
-            {pillars.map((layer, index) => (
-              <span
-                className={`research-stack-label${activeLayerId === layer.id ? " is-active" : ""}`}
-                key={`label-${layer.id}`}
-                style={{ "--i": index }}
-              >
-                <i />
-                <strong>{layer.title}</strong>
-              </span>
             ))}
           </div>
         </div>
 
-        <div className="research-active-card" aria-live="polite">
+        <div className="research-active-card" aria-live={manualLayerId ? "polite" : "off"}>
           <p>{activeLayer.number}</p>
           <h3>{activeLayer.title}</h3>
           <span>{activeLayer.activeDetail}</span>
-          <div className="research-node-list" aria-label={`${activeLayer.title} research terms`}>
-            {activeLayer.nodes.map((node) => (
-              <em key={`${activeLayer.id}-${node}`}>{node}</em>
-            ))}
-          </div>
         </div>
       </div>
     </div>
